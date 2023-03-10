@@ -56,13 +56,13 @@ async def currency(query: types.InlineQuery):
     except Exception:
         return
 
-    result = f"{res['from-amount']} {res['from-currency-symbol']} = {res['converted-amount']} {res['to-currency-symbol']}"
+    result = str(f"{res['from-amount']} {res['from-currency-symbol']} = {res['converted-amount']} {res['to-currency-symbol']}")
 
     article = [types.InlineQueryResultArticle(
         id=result_id,
-        title="The rate of a certain currency",
+        title=result,
         input_message_content=types.InputTextMessageContent(
-            message_text=str(result)
+            message_text=result
         ))]
 
     await query.answer(article, cache_time=1, is_personal=True)
