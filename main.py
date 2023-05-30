@@ -164,7 +164,7 @@ async def currency(inline_query: InlineQuery) -> None:
         )
 
     except Exception as ex:
-        result = f'{type(ex)}: {ex}'
+        result = f'{type(ex).__name__}: {ex}'
 
     article[0] = InlineQueryResultArticle(
         id=result_id,
