@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import json
 import hashlib
 
@@ -8,11 +10,11 @@ import requests
 
 from pydantic import BaseSettings
 
-from aiogram import Bot
-from aiogram.dispatcher import Dispatcher
-from aiogram.utils import executor
+from aiogram import Bot  # type: ignore
+from aiogram.dispatcher import Dispatcher  # type: ignore
+from aiogram.utils import executor  # type: ignore
 
-from aiogram.types import InlineQuery
+from aiogram.types import InlineQuery  # type: ignore
 from aiogram.types import InlineQueryResultArticle
 from aiogram.types import InputTextMessageContent
 
@@ -22,9 +24,11 @@ DDG_URL = 'https://duckduckgo.com/js/spice/currency'
 COINAPI_URL = 'https://rest.coinapi.io/v1/exchangerate'
 # ---
 
+
 # Config from .env
 class Settings(BaseSettings):
     debug: bool
+    timeout: int = 2
     coinapi_key: str
     telegram_token: str
 
@@ -32,8 +36,10 @@ class Settings(BaseSettings):
         env_file = '.env'
         env_file_encoding = 'utf-8'
 
-settings = Settings()
+
+settings = Settings()  # type: ignore
 # ---
+
 
 # Logging
 log = logging.getLogger('shirino')
@@ -48,28 +54,29 @@ if settings.debug:
     log.setLevel(logging.DEBUG)
 # ---
 
+
 bot = Bot(token=settings.telegram_token)
 dp = Dispatcher(bot)
 
 
 class CurrencyConverter:
-    
+
     def __init__(self) -> None:
-        
+
         self.amount = 1.0
         self.conv_amount = 0.0
         self.from_currency = ''
         self.conv_currency = ''
-    
+
     def convert(self) -> None:
         """Currency conversion"""
 
         if not self.ddgapi():
             self.coinapi()
-    
+
     def ddgapi(self) -> bool:
         """Get data from DuckDuckGo's currency API
-        
+
         Returns:
             `False` if the currency does not exist,
             `True` on successful conversion
@@ -77,16 +84,19 @@ class CurrencyConverter:
 
         # API request
         resp = requests.get(
-            f'{DDG_URL}/{self.amount}/{self.from_currency}'
-            f'/{self.conv_currency}'
+            (
+                f'{DDG_URL}/{self.amount}/{self.from_currency}'
+                f'/{self.conv_currency}'
+            ),
+            timeout=settings.timeout,
         )
 
         log.debug(resp.text)
 
         # Parsing JSON data
         data: Dict[str, Any] = json.loads(
-            resp.text \
-                .replace('ddg_spice_currency(', '') \
+            resp.text
+                .replace('ddg_spice_currency(', '')
                 .replace(');', '')
         )
 
@@ -104,7 +114,7 @@ class CurrencyConverter:
         log.debug(conv)
 
         return True
-    
+
     def coinapi(self) -> None:
         """Get data from CoinAPI (for cryptocurrencies)"""
 
@@ -116,6 +126,7 @@ class CurrencyConverter:
             headers={
                 'X-CoinAPI-Key': settings.coinapi_key,
             },
+            timeout=settings.timeout,
         )
 
         data: Dict[str, Any] = resp.json()
