@@ -7,29 +7,50 @@ from aiogram.dispatcher import Dispatcher
 from aiogram.utils import executor
 
 
-bot = Bot(token="")
+bot = Bot(token="5193950006:AAGU8elNfNB9FocVSIb4DnqoEvQk70Mqh5E")
 dp = Dispatcher(bot)
 
 
-def get_currency(amount, from_currency, to_currency):
-    if amount is None:
-        amount = "1"
+class TypeDict:
+    def __init__(self):
+        self.amount = None
+        self.from_amount = None
+        self.from_currency = None
+        self.to_currency = None
 
-    try:
-        page = requests.get(f"https://duckduckgo.com/js/spice/currency/{amount}/{from_currency}/{to_currency}")
-        page = page.text.replace('ddg_spice_currency(', "").replace(');', "")
-        page = json.loads(page)
-        if page["headers"]["description"].find("ERROR") != -1:
-            return
+    @staticmethod
+    def get_currency(self, amount, from_currency, to_currency):
+        if amount is None:
+            amount = "1"
 
-    except KeyError:
-        return print("Чет сломалось")
+        try:
+            page = requests.get(f"https://duckduckgo.com/js/spice/currency/{amount}/{from_currency}/{to_currency}")
+            page = page.text.replace('ddg_spice_currency(', "").replace(');', "")
+            page = json.loads(page)
 
-    return page["conversion"]
+            if page["headers"]["description"].find("ERROR") != -1:
+                print(from_currency, to_currency)
+                crypto = requests.get(f"https://rest.coinapi.io/v1/exchangerate/{from_currency.upper()}/{to_currency.upper()}", headers={
+                    "X-CoinAPI-Key": "8A465920-C233-4EE2-860B-A0AF9EC21FFF"
+                }).json()
+
+                print(crypto)
+
+                self.from_amount = crypto.get("rate")
+                return crypto.get("rate")
+
+        except KeyError:
+            print("blyat slomal")
+            return None
+
+        return page.get("conversion")
+
+    @staticmethod
+    def is_num(value):
+        return value.isdecimal() or value.replace('.', '', 1).isdecimal()
 
 
-def isNum(value):
-    return value.isdecimal() or value.replace('.', '', 1).isdecimal()
+type_dict = TypeDict()
 
 
 @dp.inline_handler()
@@ -41,22 +62,34 @@ async def currency(query: types.InlineQuery):
         return
 
     for i in range(len(text)):
-        if isNum(text[0]):
+        if type_dict.is_num(text[i]):
             continue
 
         if text[i].find(",") != -1:
             text[i] = text[i].replace(",", ".")
 
-    result: str
     try:
-        if isNum(text[0]):
-            res = get_currency(text[0], text[1], text[2])
+        if type_dict.is_num(text[0]):
+            res, crypto_rate = type_dict.get_currency(text[0], text[1], text[2])
         else:
-            res = get_currency(None, text[0], text[1])
+            res, crypto_rate = type_dict.get_currency(None, text[0], text[1])
     except Exception:
         return
 
-    result = str(f"{res['from-amount']} {res['from-currency-symbol']} = {res['converted-amount']} {res['to-currency-symbol']}")
+    if res is None:
+        return
+
+    print(res)
+
+    from_amount = res.get('from_amount', res['from-amount'])
+    from_currency_symbol = res.get('from_currency_symbol', res['from-currency-symbol'])
+    converted_amount = res.get('converted_amount', res['converted-amount'])
+    to_currency_symbol = res.get('to_currency_symbol', res['to-currency-symbol'])
+
+    result = f"{from_amount} {from_currency_symbol} = {converted_amount} {to_currency_symbol}"
+
+    if crypto_rate:
+        result += f" | Crypto Rate: {crypto_rate}"
 
     article = [types.InlineQueryResultArticle(
         id=result_id,
@@ -66,6 +99,5 @@ async def currency(query: types.InlineQuery):
         ))]
 
     await query.answer(article, cache_time=1, is_personal=True)
-
 
 executor.start_polling(dp, skip_updates=True)
