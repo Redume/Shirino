@@ -1,103 +1,173 @@
-import requests
 import json
 import hashlib
 
-from aiogram import Bot, types
+import logging
+from typing import Any, Dict, List, Optional
+
+import requests
+
+from pydantic import BaseSettings
+
+from aiogram import Bot
 from aiogram.dispatcher import Dispatcher
 from aiogram.utils import executor
 
+from aiogram.types import InlineQuery
+from aiogram.types import InlineQueryResultArticle
+from aiogram.types import InputTextMessageContent
 
-bot = Bot(token="5193950006:AAGU8elNfNB9FocVSIb4DnqoEvQk70Mqh5E")
+
+# Constants
+DDG_URL = 'https://duckduckgo.com/js/spice/currency'
+COINAPI_URL = 'https://rest.coinapi.io/v1/exchangerate'
+# ---
+
+# Config from .env
+class Settings(BaseSettings):
+    debug: bool
+    coinapi_key: str
+    telegram_token: str
+
+    class Config:
+        env_file = '.env'
+        env_file_encoding = 'utf-8'
+
+settings = Settings()
+# ---
+
+# Logging
+log = logging.getLogger('shirino')
+handler = logging.StreamHandler()
+fmt = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+
+handler.setFormatter(fmt)
+log.addHandler(handler)
+
+if settings.debug:
+    handler.setLevel(logging.DEBUG)
+    log.setLevel(logging.DEBUG)
+# ---
+
+bot = Bot(token=settings.telegram_token)
 dp = Dispatcher(bot)
 
 
-class TypeDict:
-    def __init__(self):
-        self.amount = None
-        self.from_amount = None
-        self.from_currency = None
-        self.to_currency = None
+class CurrencyConverter:
+    
+    def __init__(self) -> None:
+        
+        self.amount = 1.0
+        self.conv_amount = 0.0
+        self.from_currency = ''
+        self.conv_currency = ''
+    
+    def convert(self) -> None:
+        """Currency conversion"""
 
-    @staticmethod
-    def get_currency(self, amount, from_currency, to_currency):
-        if amount is None:
-            amount = "1"
+        if not self.ddgapi():
+            self.coinapi()
+    
+    def ddgapi(self) -> bool:
+        """Get data from DuckDuckGo's currency API
+        
+        Returns:
+            `False` if the currency does not exist,
+            `True` on successful conversion
+        """
 
-        try:
-            page = requests.get(f"https://duckduckgo.com/js/spice/currency/{amount}/{from_currency}/{to_currency}")
-            page = page.text.replace('ddg_spice_currency(', "").replace(');', "")
-            page = json.loads(page)
+        # API request
+        resp = requests.get(
+            f'{DDG_URL}/{self.amount}/{self.from_currency}'
+            f'/{self.conv_currency}'
+        )
 
-            if page["headers"]["description"].find("ERROR") != -1:
-                print(from_currency, to_currency)
-                crypto = requests.get(f"https://rest.coinapi.io/v1/exchangerate/{from_currency.upper()}/{to_currency.upper()}", headers={
-                    "X-CoinAPI-Key": "8A465920-C233-4EE2-860B-A0AF9EC21FFF"
-                }).json()
+        log.debug(resp.text)
 
-                print(crypto)
+        # Parsing JSON data
+        data: Dict[str, Any] = json.loads(
+            resp.text \
+                .replace('ddg_spice_currency(', '') \
+                .replace(');', '')
+        )
 
-                self.from_amount = crypto.get("rate")
-                return crypto.get("rate")
+        log.debug(data)
 
-        except KeyError:
-            print("blyat slomal")
-            return None
+        # If the currency does not exist
+        descr = data.get('headers', {}).get('description', '')
+        if descr.find('ERROR') != -1:
+            return False
 
-        return page.get("conversion")
+        # Otherwise
+        conv: Dict[str, str] = data.get('conversion', {})
+        self.conv_amount = float(conv.get('converted-amount', 0))
 
-    @staticmethod
-    def is_num(value):
-        return value.isdecimal() or value.replace('.', '', 1).isdecimal()
+        log.debug(conv)
 
+        return True
+    
+    def coinapi(self) -> None:
+        """Get data from CoinAPI (for cryptocurrencies)"""
 
-type_dict = TypeDict()
+        resp = requests.get(
+            (
+                f'{COINAPI_URL}/{self.from_currency}'
+                f'/{self.conv_currency}'
+            ),
+            headers={
+                'X-CoinAPI-Key': settings.coinapi_key,
+            },
+        )
+
+        data: Dict[str, Any] = resp.json()
+        self.conv_amount = float(data.get('rate', 0))
 
 
 @dp.inline_handler()
-async def currency(query: types.InlineQuery):
-    text = query.query.split(" ")
-    result_id: str = hashlib.md5(query.query.encode()).hexdigest()
+async def currency(inline_query: InlineQuery) -> None:
 
-    if text == ['']:
-        return
+    query = inline_query.query
+    article: List[Optional[InlineQueryResultArticle]] = [None]
 
-    for i in range(len(text)):
-        if type_dict.is_num(text[i]):
-            continue
+    text = query.split()
+    len_ = len(text)
 
-        if text[i].find(",") != -1:
-            text[i] = text[i].replace(",", ".")
+    result_id = hashlib.md5(query.encode()).hexdigest()
+    conv = CurrencyConverter()
 
     try:
-        if type_dict.is_num(text[0]):
-            res, crypto_rate = type_dict.get_currency(text[0], text[1], text[2])
+        if len_ == 3:
+            conv.amount = float(text[0])
+            conv.from_currency = text[1].upper()
+            conv.conv_currency = text[2].upper()
+            conv.convert()
+        elif len_ == 2:
+            conv.from_currency = text[0].upper()
+            conv.conv_currency = text[1].upper()
+            conv.convert()
         else:
-            res, crypto_rate = type_dict.get_currency(None, text[0], text[1])
-    except Exception:
-        return
+            raise ValueError('Надо 2 или 3 аргумента')
 
-    if res is None:
-        return
+        result = (
+            f'{conv.amount} {conv.from_currency} = '
+            f'{conv.conv_amount} {conv.conv_currency}'
+        )
 
-    print(res)
+    except Exception as ex:
+        result = f'{type(ex)}: {ex}'
 
-    from_amount = res.get('from_amount', res['from-amount'])
-    from_currency_symbol = res.get('from_currency_symbol', res['from-currency-symbol'])
-    converted_amount = res.get('converted_amount', res['converted-amount'])
-    to_currency_symbol = res.get('to_currency_symbol', res['to-currency-symbol'])
-
-    result = f"{from_amount} {from_currency_symbol} = {converted_amount} {to_currency_symbol}"
-
-    if crypto_rate:
-        result += f" | Crypto Rate: {crypto_rate}"
-
-    article = [types.InlineQueryResultArticle(
+    article[0] = InlineQueryResultArticle(
         id=result_id,
         title=result,
-        input_message_content=types.InputTextMessageContent(
-            message_text=result
-        ))]
+        input_message_content=InputTextMessageContent(
+            message_text=result,
+        ),
+    )
 
-    await query.answer(article, cache_time=1, is_personal=True)
+    await inline_query.answer(
+        article,
+        cache_time=1,
+        is_personal=True,
+    )
+
 
 executor.start_polling(dp, skip_updates=True)
