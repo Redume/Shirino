@@ -7,6 +7,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 import requests
+import math
 
 from pydantic import BaseSettings
 
@@ -160,7 +161,7 @@ async def currency(inline_query: InlineQuery) -> None:
 
         result = (
             f'{conv.amount} {conv.from_currency} = '
-            f'{conv.conv_amount} {conv.conv_currency}'
+            f'{math.floor(conv.conv_amount*conv.amount)} {conv.conv_currency}'
         )
 
     except Exception as ex:
