@@ -8,7 +8,6 @@ import string
 from typing import Any, Dict, List, Optional
 
 import requests
-import math
 
 from pydantic import BaseSettings
 
@@ -31,6 +30,7 @@ COINAPI_URL = 'https://rest.coinapi.io/v1/exchangerate'
 class Settings(BaseSettings):
     debug: bool
     timeout: int = 2
+    ndigits: int = 3
     coinapi_key: str
     telegram_token: str
 
@@ -65,8 +65,8 @@ class CurrencyConverter:
 
     def __init__(self) -> None:
 
-        self.amount = 1.0
-        self.conv_amount = 0.0
+        self.amount: float = 1.0
+        self.conv_amount: float = 0.0
         self.from_currency = ''
         self.conv_currency = ''
 
@@ -76,15 +76,30 @@ class CurrencyConverter:
         if not self.ddgapi():
             self.coinapi()
 
-        s = f'{self.conv_amount}'
-        point = s.find(".")
+        str_amount = f'{self.conv_amount}'
+        point = str_amount.find(".")
+        after_point = str_amount[point + 1:]
 
-        a = s[point+1:]
-        fnz = min([a.index(i) for i in string.digits[1:] if i in a], default=-1)
+        fnz = min(  # index of first non-zero digit
+            (
+                after_point.index(i)
+                for i in string.digits[1:]
+                if i in after_point
+            ),
+            default=-1,
+        )
+
         if fnz == -1:
-            self.conv_amount = int(float(s))
+            # it is an integer like 81.0
+            return
 
-        self.conv_amount = s[:point] + '.' + a[:fnz+3]
+        # first non-zero +
+        # 3 digits after zeroes or after the point
+        # (settings.ndigit = 3 by default)
+        after_point = after_point[:fnz + settings.ndigits]
+
+        rounded = f'{str_amount[:point]}.{after_point}'
+        self.conv_amount = float(rounded)
 
     def ddgapi(self) -> bool:
         """Get data from DuckDuckGo's currency API
@@ -121,7 +136,10 @@ class CurrencyConverter:
 
         # Otherwise
         conv: Dict[str, str] = data.get('conversion', {})
-        self.conv_amount = float(conv.get('converted-amount', 0))
+        conv_amount = conv.get('converted-amount')
+        if conv_amount is None:
+            raise RuntimeError('Ошибка при конвертации через DDG')
+        self.conv_amount = float(conv_amount)
 
         log.debug(conv)
 
@@ -142,7 +160,10 @@ class CurrencyConverter:
         )
 
         data: Dict[str, Any] = resp.json()
-        self.conv_amount = float(data.get('rate', 0)*self.amount)
+        rate = data.get('rate')
+        if rate is None:
+            raise RuntimeError('Не удалось получить курс валюты от CoinAPI')
+        self.conv_amount = float(rate * self.amount)
 
 
 @dp.inline_handler()
@@ -187,7 +208,7 @@ async def currency(inline_query: InlineQuery) -> None:
     )
 
     await inline_query.answer(
-        article,
+        article,  # type: ignore
         cache_time=1,
         is_personal=True,
     )
