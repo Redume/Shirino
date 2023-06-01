@@ -93,13 +93,11 @@ class CurrencyConverter:
             # it is an integer like 81.0
             return
 
-        # first non-zero +
-        # 3 digits after zeroes or after the point
-        # (settings.ndigit = 3 by default)
-        after_point = after_point[:fnz + settings.ndigits]
+        # how many digits should be after the point:
+        # ndigits (3 by default) after first non-zero
+        ndigits = fnz + settings.ndigits
 
-        rounded = f'{str_amount[:point]}.{after_point}'
-        self.conv_amount = float(rounded)
+        self.conv_amount = round(self.conv_amount, ndigits)
 
     def ddgapi(self) -> bool:
         """Get data from DuckDuckGo's currency API
