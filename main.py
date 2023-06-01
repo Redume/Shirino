@@ -131,7 +131,7 @@ class CurrencyConverter:
         )
 
         data: Dict[str, Any] = resp.json()
-        self.conv_amount = float(data.get('rate', 0))
+        self.conv_amount = float(data.get('rate', 0)*self.amount)
 
 
 @dp.inline_handler()
@@ -161,7 +161,7 @@ async def currency(inline_query: InlineQuery) -> None:
 
         result = (
             f'{conv.amount} {conv.from_currency} = '
-            f'{math.floor(conv.conv_amount*conv.amount)} {conv.conv_currency}'
+            f'{math.floor(conv.conv_amount)} {conv.conv_currency}'
         )
 
     except Exception as ex:
