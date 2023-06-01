@@ -4,6 +4,7 @@ import json
 import hashlib
 
 import logging
+import string
 from typing import Any, Dict, List, Optional
 
 import requests
@@ -74,6 +75,16 @@ class CurrencyConverter:
 
         if not self.ddgapi():
             self.coinapi()
+
+        s = f'{self.conv_amount}'
+        point = s.find(".")
+
+        a = s[point+1:]
+        fnz = min([a.index(i) for i in string.digits[1:] if i in a], default=-1)
+        if fnz == -1:
+            self.conv_amount = int(float(s))
+
+        self.conv_amount = s[:point] + '.' + a[:fnz+3]
 
     def ddgapi(self) -> bool:
         """Get data from DuckDuckGo's currency API
@@ -161,7 +172,7 @@ async def currency(inline_query: InlineQuery) -> None:
 
         result = (
             f'{conv.amount} {conv.from_currency} = '
-            f'{math.floor(conv.conv_amount)} {conv.conv_currency}'
+            f'{conv.conv_amount} {conv.conv_currency}'
         )
 
     except Exception as ex:
