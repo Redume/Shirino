@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     debug: bool
     timeout: int = 2
     ndigits: int = 3
-    coinapi_key: str
+    coinapi_keys: List[str]
     telegram_token: str
 
     class Config:
@@ -57,6 +57,8 @@ if settings.debug:
 # ---
 
 
+coinapi_len = len(settings.coinapi_keys)
+coinapi_active = [0]  # API key index
 bot = Bot(token=settings.telegram_token)
 dp = Dispatcher(bot)
 
@@ -143,8 +145,15 @@ class CurrencyConverter:
 
         return True
 
-    def coinapi(self) -> None:
-        """Get data from CoinAPI (for cryptocurrencies)"""
+    def coinapi(self, depth: int = coinapi_len) -> None:
+        """Get data from CoinAPI (for cryptocurrencies)
+        
+        Args:
+            depth (int, optional): Counter protecting from infinite recursion
+        """
+
+        if depth <= 0:
+            raise RecursionError('Рейтлимит на всех токенах')
 
         resp = requests.get(
             (
@@ -152,16 +161,32 @@ class CurrencyConverter:
                 f'/{self.conv_currency}'
             ),
             headers={
-                'X-CoinAPI-Key': settings.coinapi_key,
+                'X-CoinAPI-Key': settings.coinapi_keys[coinapi_active[0]],
             },
             timeout=settings.timeout,
         )
+
+        if resp.status_code == 429:
+            log.warning('CoinAPI ratelimited, rotating token')
+            rotate_token(settings.coinapi_keys, coinapi_active)
+            self.coinapi(depth - 1)
 
         data: Dict[str, Any] = resp.json()
         rate = data.get('rate')
         if rate is None:
             raise RuntimeError('Не удалось получить курс валюты от CoinAPI')
         self.conv_amount = float(rate * self.amount)
+
+
+def rotate_token(lst: List[str], active: List[int]) -> None:
+    """Rotates API key to prevent ratelimits
+    
+    Args:
+        lst (List[str]): Keys list
+        active (List[str]): Mutable object with current key index
+    """
+
+    active[0] = (active[0] + 1) % len(lst)
 
 
 @dp.inline_handler()
