@@ -11,7 +11,7 @@ import requests
 
 from pydantic import BaseSettings
 
-from aiogram import Bot  # type: ignore
+from aiogram import Bot, types  # type: ignore
 from aiogram.dispatcher import Dispatcher  # type: ignore
 from aiogram.utils import executor  # type: ignore
 
@@ -19,10 +19,11 @@ from aiogram.types import InlineQuery  # type: ignore
 from aiogram.types import InlineQueryResultArticle
 from aiogram.types import InputTextMessageContent
 
-
 # Constants
 DDG_URL = 'https://duckduckgo.com/js/spice/currency'
 COINAPI_URL = 'https://rest.coinapi.io/v1/exchangerate'
+
+
 # ---
 
 
@@ -123,8 +124,8 @@ class CurrencyConverter:
         # Parsing JSON data
         data: Dict[str, Any] = json.loads(
             resp.text
-                .replace('ddg_spice_currency(', '')
-                .replace(');', '')
+            .replace('ddg_spice_currency(', '')
+            .replace(');', '')
         )
 
         log.debug(data)
@@ -191,7 +192,6 @@ def rotate_token(lst: List[str], active: List[int]) -> None:
 
 @dp.inline_handler()
 async def currency(inline_query: InlineQuery) -> None:
-
     query = inline_query.query
     article: List[Optional[InlineQueryResultArticle]] = [None]
 
@@ -235,6 +235,15 @@ async def currency(inline_query: InlineQuery) -> None:
         cache_time=1,
         is_personal=True,
     )
+
+
+@dp.message_handler(commands=['start'])
+async def start(message: types.Message):
+    await message.answer("Hi! Bot can show the exchange rate of crypto and fiat currency. "
+                         "The bot is used through the inline commands "
+                         "`@shirino_bot 12 usd rub` or `@shirino_bot usd rub`"
+                         "\n\nThe bot is open source on [Github](https://github.com/redume/shirino)",
+                         parse_mode="markdown")
 
 
 executor.start_polling(dp, skip_updates=True)
