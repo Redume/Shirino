@@ -9,15 +9,11 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
-from pydantic import BaseSettings
+from pydantic.v1 import BaseSettings
 
-from aiogram import Bot  # type: ignore
-from aiogram.dispatcher import Dispatcher  # type: ignore
-from aiogram.utils import executor  # type: ignore
+from aiogram import Bot, Dispatcher, types  # type: ignore
 
-from aiogram.types import InlineQuery  # type: ignore
-from aiogram.types import InlineQueryResultArticle
-from aiogram.types import InputTextMessageContent
+import asyncio
 
 
 # Constants
@@ -59,8 +55,7 @@ if settings.debug:
 
 coinapi_len = len(settings.coinapi_keys)
 coinapi_active = [0]  # API key index
-bot = Bot(token=settings.telegram_token)
-dp = Dispatcher(bot)
+dp = Dispatcher()
 
 
 class CurrencyConverter:
@@ -79,7 +74,7 @@ class CurrencyConverter:
             self.coinapi()
 
         str_amount = f'{self.conv_amount}'
-        point = str_amount.find(".")
+        point = str_amount.find('.')
         after_point = str_amount[point + 1:]
 
         fnz = min(  # index of first non-zero digit
@@ -130,15 +125,16 @@ class CurrencyConverter:
         log.debug(data)
 
         # If the currency does not exist
-        descr = data.get('headers', {}).get('description', '')
-        if descr.find('ERROR') != -1:
+        error = data.get('to')[0].get('quotecurrency')
+        if error is None:
             return False
 
         # Otherwise
-        conv: Dict[str, str] = data.get('conversion', {})
-        conv_amount = conv.get('converted-amount')
+        conv: Dict[str, str] = data.get('to')[0]
+        conv_amount = conv.get('mid')
         if conv_amount is None:
             raise RuntimeError('Ошибка при конвертации через DDG')
+
         self.conv_amount = float(conv_amount)
 
         log.debug(conv)
@@ -189,11 +185,11 @@ def rotate_token(lst: List[str], active: List[int]) -> None:
     active[0] = (active[0] + 1) % len(lst)
 
 
-@dp.inline_handler()
-async def currency(inline_query: InlineQuery) -> None:
+@dp.inline_query()
+async def currency(inline_query: types.InlineQuery) -> None:
 
     query = inline_query.query
-    article: List[Optional[InlineQueryResultArticle]] = [None]
+    article: List[Optional[types.InlineQueryResultArticle]] = [None]
 
     text = query.split()
     len_ = len(text)
@@ -222,10 +218,10 @@ async def currency(inline_query: InlineQuery) -> None:
     except Exception as ex:
         result = f'{type(ex).__name__}: {ex}'
 
-    article[0] = InlineQueryResultArticle(
+    article[0] = types.InlineQueryResultArticle(
         id=result_id,
         title=result,
-        input_message_content=InputTextMessageContent(
+        input_message_content=types.InputTextMessageContent(
             message_text=result,
         ),
     )
@@ -237,4 +233,10 @@ async def currency(inline_query: InlineQuery) -> None:
     )
 
 
-executor.start_polling(dp, skip_updates=True)
+async def main() -> None:
+    bot = Bot(settings.telegram_token)
+    await dp.start_polling(bot)
+
+
+if __name__ == '__main__':
+    asyncio.run(main())
