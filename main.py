@@ -7,6 +7,7 @@ import logging
 import string
 from typing import Any, Dict, List, Optional
 
+import aiohttp.client_exceptions
 import requests
 
 from pydantic.v1 import BaseSettings
@@ -125,14 +126,16 @@ class CurrencyConverter:
         log.debug(data)
 
         # If the currency does not exist
-        error = data.get('to')[0].get('quotecurrency')
-        if error is None:
+        error = data.get('to')
+
+        if len(error) == 0:
             return False
 
         # Otherwise
         conv: Dict[str, str] = data.get('to')[0]
         conv_amount = conv.get('mid')
-        if conv_amount is None:
+
+        if not conv_amount:
             raise RuntimeError('Ошибка при конвертации через DDG')
 
         self.conv_amount = float(conv_amount)
@@ -214,6 +217,9 @@ async def currency(inline_query: types.InlineQuery) -> None:
             f'{conv.amount} {conv.from_currency} = '
             f'{conv.conv_amount} {conv.conv_currency}'
         )
+
+    except aiohttp.client_exceptions.ClientError:
+        result = "Рейт-лимит от api telegram, попробуйте позже"
 
     except Exception as ex:
         result = f'{type(ex).__name__}: {ex}'
