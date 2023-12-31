@@ -1,24 +1,32 @@
 #!/usr/bin/env python3
-import aiohttp.client_exceptions
-from pydantic.v1 import BaseSettings
-from typing import List, Any, Dict, Optional
-import logging
-
-from aiogram import Dispatcher, types, Bot
-
-import requests
-import json
-
-import hashlib
 
 import asyncio
-
+import hashlib
+import json
+import logging
 import re
+
 import string
+from typing import List, Any, Dict, Optional
+
+import requests
+from aiogram import Dispatcher, types, Bot
+import aiohttp.client_exceptions
+from pydantic.v1 import BaseSettings
+
+# Constants
+DDG_URL = 'https://duckduckgo.com/js/spice/currency'
+COINAPI_URL = 'https://rest.coinapi.io/v1/exchangerate'
 
 
+# ---
+
+
+# Config from .env
 class Settings(BaseSettings):
     debug: bool
+    timeout: int = 2
+    ndigits: int = 3
     coinapi_keys: List[str]
     telegram_token: str
 
@@ -27,8 +35,11 @@ class Settings(BaseSettings):
         env_file_encoding = 'utf-8'
 
 
-settings = Settings()
+settings = Settings()  # type: ignore
+# ---
 
+
+# Logging
 log = logging.getLogger('shirino')
 handler = logging.StreamHandler()
 fmt = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
@@ -39,32 +50,34 @@ log.addHandler(handler)
 if settings.debug:
     handler.setLevel(logging.DEBUG)
     log.setLevel(logging.DEBUG)
+# ---
+
 
 coinapi_len = len(settings.coinapi_keys)
-coinapi_active = [0]
-
+coinapi_active = [0]  # API key index
 dp = Dispatcher()
 
-DDG_URL = 'https://duckduckgo.com/js/spice/currency'
-COINAPI_URL = 'https://rest.coinapi.io/v1/exchangerate'
 
+class CurrencyConverter:
 
-class Currency:
     def __init__(self) -> None:
+
         self.amount: float = 1.0
-        self.conv_amount: float = 1.0
+        self.conv_amount: float = 0.0
         self.from_currency = ''
         self.conv_currency = ''
 
     def convert(self) -> None:
-        if not self.ddg():
+        """Currency conversion"""
+
+        if not self.ddgapi():
             self.coinapi()
 
         str_amount = f'{self.conv_amount}'
-        point = str_amount.find('.')
+        point = str_amount.find(".")
         after_point = str_amount[point + 1:]
 
-        fnz = min(
+        fnz = min(  # index of first non-zero digit
             (
                 after_point.index(i)
                 for i in string.digits[1:]
@@ -79,16 +92,21 @@ class Currency:
 
         # how many digits should be after the point:
         # ndigits (3 by default) after first non-zero
-        ndigits = fnz + 3
+        ndigits = fnz + settings.ndigits
 
         self.conv_amount = round(self.conv_amount, ndigits)
 
-    def ddg(self) -> float:
+    def ddgapi(self) -> bool:
         """Получение данных фиатной валюты через DuckDuckGo
 
         e.g: https://duckduckgo.com/js/spice/currency/1/USD/RUB
+
+        Returns:
+            `False` если валюты нет в API
+            `True` если конвертация прошла успешно
         """
 
+        # Запрос к API
         res = requests.get(f'{DDG_URL}/{self.amount}/{self.from_currency}/{self.conv_currency}')
         data: Dict[str, Any] = json.loads(re.findall(r'(.+)\);', res.text)[0])
 
@@ -101,7 +119,6 @@ class Currency:
         conv_amount = conv.get("mid")
 
         if conv_amount is None:
-            print("FUCK")
             raise RuntimeError('Ошибка при конвертации валюты через DuckDuckGo')
 
         log.debug(conv)
@@ -115,7 +132,7 @@ class Currency:
         """Получение данных с CoinAPI для получения курса криптовалюты
 
         Args:
-            depth (int, optional): Счетчик, защищающий от бесконечной рекурсии
+            depth (int, optional): Счетчик, защищающий от рекурсии
         """
 
         if depth <= 0:
@@ -129,7 +146,7 @@ class Currency:
             headers={
                 'X-CoinAPI-Key': settings.coinapi_keys[coinapi_active[0]],
             },
-            timeout=3,
+            timeout=settings.timeout,
         )
 
         if resp.status_code == 429:
@@ -163,53 +180,51 @@ async def currency(inline_query: types.InlineQuery) -> None:
     args = query.split()
 
     result_id = hashlib.md5(query.encode()).hexdigest()
-    conv = Currency()
+    conv = CurrencyConverter()
 
     try:
-        if len(args) == 0:
-            article[0] = types.InlineQueryResultArticle(
-                id=result_id,
-                title="Требуется 2, либо 3 аргумента",
-                description=f"@shirino_bot USD RUB \n@shirino_bot 12 USD RUB",
-                input_message_content=types.InputTextMessageContent(
-                    message_text="Требуется 2, либо 3 аргумента"
-                )
-            )
-
-        elif args[0].isdigit() or re.match(r'^-?\d+(?:\.\d+)$', args[0]) is not None:
+        if len(args) == 3:
+            conv.amount = float(args[0])
             conv.from_currency = args[1].upper()
             conv.conv_currency = args[2].upper()
             conv.convert()
-        elif type(args[0]) is str:
+        elif len(args) == 2:
             conv.from_currency = args[0].upper()
             conv.conv_currency = args[1].upper()
             conv.convert()
+        else:
+            raise ValueError('Надо 2 или 3 аргумента')
 
-        result_title = f'{conv.amount} {conv.from_currency} = {conv.conv_amount} {conv.conv_currency}'
-        result_desc = None
+        result = (
+            f'{conv.amount} {conv.from_currency} = '
+            f'{conv.conv_amount} {conv.conv_currency}'
+        )
 
-
-    except aiohttp.client_exceptions.ClientError:
-        result_title = 'Произошла ошибка'
-        result_desc = 'Рейт-лимит от api telegram, попробуйте позже'
+    except aiohttp.client_exceptions.ClientError as ex:
+        article[0] = types.InlineQueryResultArticle(
+            id=result_id,
+            title="Rate-limit от API Telegram, повторите запрос позже.",
+            input_message_content=types.InputTextMessageContent(
+                message_text="Rate-limit от API Telegram, повторите запрос позже.",
+            )
+        )
+        log.debug(ex)
         await asyncio.sleep(1)
 
     except Exception as ex:
         log.debug(ex)
-        result_title = 'Произошла ошибка'
-        result_desc = f'{type(ex).__name__}: {ex}'
+        result = f'{type(ex).__name__}: {ex}'
 
     article[0] = types.InlineQueryResultArticle(
         id=result_id,
-        title=result_title,
-        description=result_desc,
+        title=result,
         input_message_content=types.InputTextMessageContent(
-            message_text=f"{result_title} \n{result_desc}",
+            message_text=result,
         ),
     )
 
     await inline_query.answer(
-        article,
+        article,  # type: ignore
         cache_time=1,
         is_personal=True,
     )
