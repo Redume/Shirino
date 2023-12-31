@@ -13,7 +13,6 @@ import requests
 from aiogram import Dispatcher, types, Bot
 import aiohttp.client_exceptions
 from pydantic.v1 import BaseSettings
-from selenium.webdriver.common.actions import interaction
 
 # Constants
 DDG_URL = 'https://duckduckgo.com/js/spice/currency'
