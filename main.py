@@ -183,6 +183,22 @@ async def currency(inline_query: types.InlineQuery) -> None:
     conv = CurrencyConverter()
 
     try:
+        log.debug(len(args))
+        if len(args) <= 1:
+            article[0] = types.InlineQueryResultArticle(
+                id=result_id,
+                title="Требуется 2, либо 3 аргумента",
+                description=f"@shirino_bot USD RUB \n@shirino_bot 12 USD RUB",
+                input_message_content=types.InputTextMessageContent(
+                    message_text="Требуется 2, либо 3 аргумента"
+                )
+            )
+
+            await inline_query.answer(
+                article,
+                cache_time=1,
+                is_personal=True,
+            )
         if len(args) == 3:
             conv.amount = float(args[0])
             conv.from_currency = args[1].upper()
@@ -192,8 +208,6 @@ async def currency(inline_query: types.InlineQuery) -> None:
             conv.from_currency = args[0].upper()
             conv.conv_currency = args[1].upper()
             conv.convert()
-        else:
-            raise ValueError('Надо 2 или 3 аргумента')
 
         result = (
             f'{conv.amount} {conv.from_currency} = '
