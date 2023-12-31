@@ -13,6 +13,7 @@ import requests
 from aiogram import Dispatcher, types, Bot
 import aiohttp.client_exceptions
 from pydantic.v1 import BaseSettings
+from selenium.webdriver.common.actions import interaction
 
 # Constants
 DDG_URL = 'https://duckduckgo.com/js/spice/currency'
@@ -172,11 +173,27 @@ def rotate_token(lst: List[str], active: List[int]) -> None:
     active[0] = (active[0] + 1) % len(lst)
 
 
+async def inline_reply(result_id: str, title: str, description: str or None, inline_query: types.InlineQuery) -> None:
+    article: List[Optional[types.InlineQueryResultArticle]] = [None]
+    article[0] = types.InlineQueryResultArticle(
+        id=result_id,
+        title=title,
+        description=description,
+        input_message_content=types.InputTextMessageContent(
+            message_text=title
+        )
+    )
+
+    await inline_query.answer(
+        article,
+        cache_time=1,
+        is_personal=True,
+    )
+
+
 @dp.inline_query()
 async def currency(inline_query: types.InlineQuery) -> None:
     query = inline_query.query
-    article: List[Optional[types.InlineQueryResultArticle]] = [None]
-
     args = query.split()
 
     result_id = hashlib.md5(query.encode()).hexdigest()
@@ -185,20 +202,10 @@ async def currency(inline_query: types.InlineQuery) -> None:
     try:
         log.debug(len(args))
         if len(args) <= 1:
-            article[0] = types.InlineQueryResultArticle(
-                id=result_id,
-                title="Требуется 2, либо 3 аргумента",
-                description=f"@shirino_bot USD RUB \n@shirino_bot 12 USD RUB",
-                input_message_content=types.InputTextMessageContent(
-                    message_text="Требуется 2, либо 3 аргумента"
-                )
-            )
+            await inline_reply(result_id,
+                               "Требуется 2, либо 3 аргумента",
+                               f"@shirino_bot USD RUB \n@shirino_bot 12 USD RUB", inline_query)
 
-            await inline_query.answer(
-                article,
-                cache_time=1,
-                is_personal=True,
-            )
         if len(args) == 3:
             conv.amount = float(args[0])
             conv.from_currency = args[1].upper()
@@ -215,13 +222,11 @@ async def currency(inline_query: types.InlineQuery) -> None:
         )
 
     except aiohttp.client_exceptions.ClientError as ex:
-        article[0] = types.InlineQueryResultArticle(
-            id=result_id,
-            title="Rate-limit от API Telegram, повторите запрос позже.",
-            input_message_content=types.InputTextMessageContent(
-                message_text="Rate-limit от API Telegram, повторите запрос позже.",
-            )
-        )
+        await inline_reply(result,
+                           "Rate-limit от API Telegram, повторите запрос позже",
+                           None,
+                           inline_query)
+
         log.debug(ex)
         await asyncio.sleep(1)
 
@@ -229,19 +234,7 @@ async def currency(inline_query: types.InlineQuery) -> None:
         log.debug(ex)
         result = f'{type(ex).__name__}: {ex}'
 
-    article[0] = types.InlineQueryResultArticle(
-        id=result_id,
-        title=result,
-        input_message_content=types.InputTextMessageContent(
-            message_text=result,
-        ),
-    )
-
-    await inline_query.answer(
-        article,  # type: ignore
-        cache_time=1,
-        is_personal=True,
-    )
+    await inline_reply(result, result, None, inline_query)
 
 
 async def main() -> None:
