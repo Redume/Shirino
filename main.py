@@ -222,7 +222,7 @@ async def currency(inline_query: types.InlineQuery) -> None:
         )
 
     except aiohttp.client_exceptions.ClientError as ex:
-        await inline_reply(result,
+        await inline_reply(result_id,
                            "Rate-limit от API Telegram, повторите запрос позже",
                            None,
                            inline_query)
@@ -232,9 +232,11 @@ async def currency(inline_query: types.InlineQuery) -> None:
 
     except Exception as ex:
         log.debug(ex)
-        result = f'{type(ex).__name__}: {ex}'
+        await inline_reply(result_id, "Неверный формат данных",
+                           "@shirino_bot USD RUB \n@shirino_bot 12 USD RUB",
+                           inline_query)
 
-    await inline_reply(result, result, None, inline_query)
+    await inline_reply(result_id, result, None, inline_query)
 
 
 async def main() -> None:
