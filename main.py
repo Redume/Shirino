@@ -11,6 +11,7 @@ import logging
 import yaml
 
 from aiogram import Dispatcher, types, Bot
+from aiogram.filters import CommandStart
 
 # Constants
 DDG_URL = 'https://duckduckgo.com/js/spice/currency'
@@ -187,6 +188,15 @@ async def currency(inline_query: types.InlineQuery):
                            inline_query)
 
     await inline_reply(result_id, result, None, inline_query)
+
+
+@dp.message(CommandStart())
+async def start(message: types.Message):
+    await message.answer("Привет! Бот может показывать курс обмена криптовалюты и фиатной валюты. "
+                         "Бот используется с помощью инлайн-команд: "
+                         "`@shirino_bot 12 usd rub` или `@shirino_bot usd rub`"
+                         "\n\nИсходный код опубликован на [Github](https://github.com/redume/shirino)",
+                         parse_mode="markdown")
 
 
 async def main() -> None:
