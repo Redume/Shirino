@@ -25,8 +25,6 @@ fmt = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
 handler.setFormatter(fmt)
 log.addHandler(handler)
 
-print(config)
-
 if config['debug']:
     handler.setLevel(logging.DEBUG)
     log.setLevel(logging.DEBUG)
@@ -192,6 +190,7 @@ async def currency(inline_query: types.InlineQuery):
 
 
 async def main() -> None:
+    log.debug(config)
     bot = Bot(config['telegram_token'])
     await dp.start_polling(bot)
 
