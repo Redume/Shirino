@@ -73,6 +73,7 @@ async def inline_reply(result_id: str, title: str, description: str or None, inl
 
 @dp.inline_query()
 async def currency(inline_query: types.InlineQuery) -> None:
+    global result
     query = inline_query.query
     args = query.split()
 
@@ -86,7 +87,7 @@ async def currency(inline_query: types.InlineQuery) -> None:
                                f"@shirino_bot USD RUB \n@shirino_bot 12 USD RUB", inline_query)
 
         if len(args) == 3:
-            conv.amount = float(args[0])
+            conv.amount = float(args[0].replace(',', '.'))
             conv.from_currency = args[1].upper()
             conv.conv_currency = args[2].upper()
             conv.convert()
@@ -108,13 +109,10 @@ async def currency(inline_query: types.InlineQuery) -> None:
 
         await asyncio.sleep(1)
 
-    except Exception as e:
-        print(e)
+    except Exception:
         await inline_reply(result_id, "Invalid data format",
                            "@shirino_bot USD RUB \n@shirino_bot 12 USD RUB",
                            inline_query)
-    except UnboundLocalError:
-        pass
 
     await inline_reply(result_id, result, None, inline_query)
 
