@@ -47,7 +47,7 @@ class Converter:
         conv_amount = conv.get('mid')
 
         if conv_amount is None:
-            raise RuntimeError('Ошибка при конвертации валюты через DuckDuckGo')
+            raise RuntimeError('Error when converting currency via DuckDuckGo')
 
         self.conv_amount = float(conv_amount)
 
