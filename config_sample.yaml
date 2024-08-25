@@ -1,6 +1,5 @@
 debug: false           # debug logging
 timeout: 2             # http requests timeout
-ndigits: 3             # digits after floating point or after zeroes
 coinapi_keys:
   - key
   - key2               # coinapi keys list
