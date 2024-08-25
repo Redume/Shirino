@@ -2,10 +2,14 @@ from aiogram import Bot, Dispatcher, types
 
 import asyncio
 import yaml
+
 import hashlib
 import aiohttp
-import json
 
+import json
+import re
+
+from word2number import w2n
 from function.convert import Converter
 
 config = yaml.safe_load(open("config.yaml"))
@@ -14,15 +18,37 @@ dp = Dispatcher()
 
 @dp.message()
 async def message_conv(message: types.Message):
-    query = message.text.split(' ')
-    conv = Converter()
+    with open('currency.json', 'r', encoding='utf-8') as f:
+        currency_json = json.load(f)
 
-    amount = query[0]
-    source_currency_alias = query[1]
-    target_currency_alias = query[3]
+    text = message.text.lower()
+    args = text.split()
 
-    with open('currency.json', encoding='utf-8') as file:
-        currency_json = json.loads(file.read())
+    number_match = re.match(r'\d+\.?\d*|\w+', args[0])
+    if number_match:
+        number_text = number_match.group(0)
+
+        try:
+            amount = float(number_text)
+        except ValueError:
+            try:
+                amount = float(w2n.word_to_num(number_text))
+            except ValueError:
+                await message.reply("Не удалось распознать числовое значение.")
+                return
+    else:
+        await message.reply("Не удалось найти числовое значение.")
+        return
+
+    if len(args) == 4:
+        source_currency_alias = args[1]
+        target_currency_alias = args[3]
+    elif len(args) == 3:
+        source_currency_alias = args[0]
+        target_currency_alias = args[2]
+    else:
+        await message.reply("Не удалось определить исходную и целевую валюту.")
+        return
 
     source_currency_code = None
     target_currency_code = None
@@ -30,26 +56,20 @@ async def message_conv(message: types.Message):
     for currency_code, aliases in currency_json.items():
         if source_currency_alias in aliases:
             source_currency_code = currency_code
-
-        elif target_currency_alias in aliases:
+        if target_currency_alias in aliases:
             target_currency_code = currency_code
 
-        elif source_currency_code and target_currency_code:
-            break
-        else:
-            return
+    if not source_currency_code or not target_currency_code or amount is None:
+        await message.reply("Не удалось найти сумму или валюты по указанным данным.")
+        return
 
-    if source_currency_code and target_currency_code:
-        conv.amount = float(amount)
-        conv.from_currency = source_currency_code.upper()
-        conv.conv_currency = target_currency_code.upper()
-        conv.convert()
+    conv = Converter()
+    conv.amount = amount
+    conv.from_currency = source_currency_code.upper()
+    conv.conv_currency = target_currency_code.upper()
+    conv.convert()
 
-    result = (
-        f'{conv.amount} {conv.from_currency} = '
-        f'{conv.conv_amount} {conv.conv_currency}'
-    )
-
+    result = f'{conv.amount} {conv.from_currency} = {conv.conv_amount} {conv.conv_currency}'
     await message.reply(result)
 
 
