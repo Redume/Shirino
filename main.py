@@ -11,6 +11,7 @@ import re
 
 from word2number import w2n
 from function.convert import Converter
+from function.format_number import format_number
 
 config = yaml.safe_load(open("config.yaml"))
 dp = Dispatcher()
@@ -69,7 +70,7 @@ async def message_conv(message: types.Message):
     conv.conv_currency = target_currency_code.upper()
     conv.convert()
 
-    result = f'{conv.amount} {conv.from_currency} = {conv.conv_amount} {conv.conv_currency}'
+    result = f'{format_number(conv.amount)} {conv.from_currency} = {conv.conv_amount} {conv.conv_currency}'
     await message.reply(result)
 
 
@@ -117,7 +118,7 @@ async def currency(inline_query: types.InlineQuery) -> None:
             conv.convert()
 
         result = (
-            f'{conv.amount} {conv.from_currency} = '
+            f'{format_number(conv.amount)} {conv.from_currency} = '
             f'{conv.conv_amount} {conv.conv_currency}'
         )
 
