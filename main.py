@@ -16,7 +16,7 @@ dp = Dispatcher()
 @dp.message()
 @dp.inline_query()
 async def currency(query: types.Message | types.InlineQuery) -> None:
-    global result
+    global result, from_currency_alias, conv_currency_alias
 
     try:
         currency_json = json.load(open('currency.json', 'r', encoding='utf-8'))
@@ -26,11 +26,12 @@ async def currency(query: types.Message | types.InlineQuery) -> None:
         conv = Converter()
 
         if len(args) <= 1:
-            return await reply(result_id,
-                               "2 or 3 arguments are required.",
-                               "@shirino_bot USD RUB "
-                               "\n@shirino_bot 12 USD RUB",
-                               query)
+            if query.chat.type not in ['supergroup', 'group']:
+                return await reply(result_id,
+                                   "2 or 3 arguments are required.",
+                                   "@shirino_bot USD RUB "
+                                   "\n@shirino_bot 12 USD RUB",
+                                   query)
         if len(args) == 4:
             conv.amount = float(args[0])
             from_currency_alias = args[1].lower()
@@ -43,7 +44,8 @@ async def currency(query: types.Message | types.InlineQuery) -> None:
             from_currency_alias = args[0].lower()
             conv_currency_alias = args[1].lower()
         else:
-            return await reply(result_id, 'The source and target currency could not be determined.', None, query)
+            if query.chat.type not in ['supergroup', 'group']:
+                return await reply(result_id, 'The source and target currency could not be determined.', None, query)
 
         from_currency, conv_currency = None, None
 
