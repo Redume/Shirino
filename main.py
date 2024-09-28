@@ -26,12 +26,17 @@ async def currency(query: types.Message | types.InlineQuery) -> None:
         conv = Converter()
 
         if len(args) <= 1:
-            if query.chat.type not in ['supergroup', 'group']:
-                return await reply(result_id,
-                                   "2 or 3 arguments are required.",
-                                   "@shirino_bot USD RUB "
-                                   "\n@shirino_bot 12 USD RUB",
-                                   query)
+            try:
+                if query.chat.type in ['supergroup', 'group']:
+                    return
+            except:
+                pass
+
+            return await reply(result_id,
+                            "2 or 3 arguments are required.",
+                            "@shirino_bot USD RUB "
+                            "\n@shirino_bot 12 USD RUB",
+                            query)
         if len(args) == 4:
             conv.amount = float(args[0])
             from_currency_alias = args[1].lower()
@@ -44,8 +49,13 @@ async def currency(query: types.Message | types.InlineQuery) -> None:
             from_currency_alias = args[0].lower()
             conv_currency_alias = args[1].lower()
         else:
-            if query.chat.type not in ['supergroup', 'group']:
-                return await reply(result_id, 'The source and target currency could not be determined.', None, query)
+            try:
+                if query.chat.type in ['supergroup', 'group']:
+                    return
+            except:
+                pass
+            
+            return await reply(result_id, 'The source and target currency could not be determined.', None, query)
 
         from_currency, conv_currency = None, None
 
@@ -93,7 +103,7 @@ async def reply(result_id: str | None, title: str | None, desc, query: types.Inl
             is_personal=True,
         )
     else:
-        await query.answer(title)
+        await query.answer(f'{title} \n{desc}')
 
 
 async def main() -> None:
