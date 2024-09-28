@@ -1,9 +1,5 @@
 services:
   shirino:
+    build: .
     image: ghcr.io/shirino/shirino:latest
-    ports:
-      - '8080:8080'
     restart: unless-stopped
-    volumes:
-      - '.config.yaml:/config.yaml'
-      - '.config_sample.yaml:/config_sample.yaml'
