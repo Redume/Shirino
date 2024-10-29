@@ -1,6 +1,11 @@
 .git/
 .vscode/
 .idea/
+.github/
 
 .DS_Store
 __pycache__
+
+.mypy_cache
+mypy.ini
+pylintrc
