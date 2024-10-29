@@ -16,10 +16,9 @@ dp = Dispatcher()
 @dp.message()
 @dp.inline_query()
 async def currency(query: types.Message | types.InlineQuery) -> None:
-    global result, from_currency_alias, conv_currency_alias
+    global result, from_currency, conv_currency
 
     try:
-        currency_json = json.load(open('currency.json', 'r', encoding='utf-8'))
         text = query.query if isinstance(query, types.InlineQuery) else query.text
         args = text.split()
         result_id = hashlib.md5(text.encode()).hexdigest()
@@ -39,15 +38,15 @@ async def currency(query: types.Message | types.InlineQuery) -> None:
                             query)
         if len(args) == 4:
             conv.amount = float(args[0])
-            from_currency_alias = args[1].lower()
-            conv_currency_alias = args[3].lower()
+            from_currency = args[1].lower()
+            conv_currency = args[3].lower()
         elif len(args) == 3:
             conv.amount = float(args[0])
-            from_currency_alias = args[1].lower()
-            conv_currency_alias = args[2].lower()
+            from_currency = args[1].lower()
+            conv_currency = args[2].lower()
         elif len(args) == 2:
-            from_currency_alias = args[0].lower()
-            conv_currency_alias = args[1].lower()
+            from_currency = args[0].lower()
+            conv_currency = args[1].lower()
         else:
             try:
                 if query.chat.type in ['supergroup', 'group']:
@@ -56,17 +55,6 @@ async def currency(query: types.Message | types.InlineQuery) -> None:
                 pass
             
             return await reply(result_id, 'The source and target currency could not be determined.', None, query)
-
-        from_currency, conv_currency = None, None
-
-        for currency_code, aliases in currency_json.items():
-            if from_currency_alias in aliases:
-                from_currency = currency_code
-            if conv_currency_alias in aliases:
-                conv_currency = currency_code
-
-            if from_currency and conv_currency:
-                break
 
         if not from_currency or not conv_currency:
             return await reply(result_id,
