@@ -4,3 +4,4 @@ coinapi_keys:
   - key
   - key2               # coinapi keys list
 telegram_token:        # telegram bot token
+kekkai_instance: 'https://kekkai-api.redume.su/'

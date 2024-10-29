@@ -2,10 +2,13 @@ from aiogram import Bot, Dispatcher, types
 
 import asyncio
 import yaml
+import requests
 
 import hashlib
-
 import json
+
+from http import HTTPStatus
+
 from function.convert import Converter
 from function.format_number import format_number
 
@@ -35,6 +38,7 @@ async def currency(query: types.Message | types.InlineQuery) -> None:
                             "2 or 3 arguments are required.",
                             "@shirino_bot USD RUB "
                             "\n@shirino_bot 12 USD RUB",
+                            None,
                             query)
         if len(args) == 4:
             conv.amount = float(args[0])
@@ -54,11 +58,12 @@ async def currency(query: types.Message | types.InlineQuery) -> None:
             except:
                 pass
             
-            return await reply(result_id, 'The source and target currency could not be determined.', None, query)
+            return await reply(result_id, 'The source and target currency could not be determined.', None, None, query)
 
         if not from_currency or not conv_currency:
             return await reply(result_id,
                                'The currency exchange rate could not be found.',
+                               None,
                                None,
                                query)
 
@@ -66,33 +71,53 @@ async def currency(query: types.Message | types.InlineQuery) -> None:
         conv.conv_currency = conv_currency.upper()
         conv.convert()
 
-        result = f'{format_number(conv.amount)} {conv.from_currency} = {conv.conv_amount} {conv.conv_currency}'
-        return await reply(result_id, result, None, query)
+        res_chart = requests.get(f'{config['kekkai_instance']}/api/getChart/week/', {
+            'from_currency': from_currency,
+            'conv_currency': conv_currency
+        }, timeout=3)
+
+        if not HTTPStatus(res_chart.status_code).is_success:
+            res_chart = None
+        else:
+            res_chart = res_chart.json()['message']
+
+        result = f'{format_number(conv.amount)} {conv.from_currency} = {conv.conv_amount} {conv.conv_currency}' \
+                    f'\n{f'[График]({res_chart})' if res_chart else ''}'
+        return await reply(result_id, result, None, res_chart, query)
 
     except Exception as e:
         print(e)
 
 
-async def reply(result_id: str | None, title: str | None, desc, query: types.InlineQuery | types.Message) -> None:
+async def reply(
+                    result_id: str | None, 
+                    title: str, 
+                    desc: str | None,
+                    img: str | None,
+                    query: types.InlineQuery | types.Message,
+                ) -> None:
+
     if isinstance(query, types.InlineQuery):
         article = [None]
         article[0] = types.InlineQueryResultArticle(
             id=result_id,
             title=title,
+            thumbnail_url=img,
             description=desc,
             input_message_content=types.InputTextMessageContent(
-                message_text=title
+                message_text=title,
+                parse_mode='markdown'
             )
         )
 
         await query.answer(
             article,
-            cache_time=1,
+            parse_mode='markdown',
+            cache_time=0,
             is_personal=True,
         )
     else:
-        await query.answer(f'{title} \n{desc}')
-
+        await query.answer(f'{title} \n{'' if desc else ''}')
 
 async def main() -> None:
     bot = Bot(config['telegram_token'])
