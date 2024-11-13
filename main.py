@@ -1,123 +1,127 @@
 from aiogram import Bot, Dispatcher, types
 
-import asyncio
 import yaml
+import asyncio
 import requests
 
 import hashlib
 import json
 
 from http import HTTPStatus
+import re
 
 from function.convert import Converter
 from function.format_number import format_number
 
-config = yaml.safe_load(open("config.yaml"))
 dp = Dispatcher()
+config = yaml.safe_load(open('config.yaml'))
 
-
-@dp.message()
 @dp.inline_query()
-async def currency(query: types.Message | types.InlineQuery) -> None:
+async def currency(query: types.InlineQuery) -> None:
     global result, from_currency, conv_currency
 
     try:
-        text = query.query if isinstance(query, types.InlineQuery) else query.text
+        text = query.query.lower()
         args = text.split()
         result_id = hashlib.md5(text.encode()).hexdigest()
+
         conv = Converter()
 
-        if len(args) <= 1:
-            try:
-                if query.chat.type in ['supergroup', 'group']:
-                    return
-            except:
-                pass
+        if len(args) < 2:
+            return await reply(result_id, 
+                                [("2 or 3 arguments are required.", 
+                                '@shirino_bot USD RUB \n'
+                                '@shirino_bot 12 USD RUB')], 
+                                query)
 
-            return await reply(result_id,
-                            "2 or 3 arguments are required.",
-                            "@shirino_bot USD RUB "
-                            "\n@shirino_bot 12 USD RUB",
-                            None,
-                            query)
-        if len(args) == 4:
+        if len(args) == 3:
             conv.amount = float(args[0])
-            from_currency = args[1].lower()
-            conv_currency = args[3].lower()
-        elif len(args) == 3:
-            conv.amount = float(args[0])
-            from_currency = args[1].lower()
-            conv_currency = args[2].lower()
+            from_currency = args[1]
+            conv_currency = args[2]
         elif len(args) == 2:
-            from_currency = args[0].lower()
-            conv_currency = args[1].lower()
+            from_currency = args[0]
+            conv_currency = args[1]
         else:
-            try:
-                if query.chat.type in ['supergroup', 'group']:
-                    return
-            except:
-                pass
-            
-            return await reply(result_id, 'The source and target currency could not be determined.', None, None, query)
+            return await reply(result_id, [('The source and target currency could not be determined.')], query)
 
         if not from_currency or not conv_currency:
-            return await reply(result_id,
-                               'The currency exchange rate could not be found.',
-                               None,
-                               None,
-                               query)
+            return await reply(result_id, [('The currency exchange rate could not be found.')], query)
 
         conv.from_currency = from_currency.upper()
         conv.conv_currency = conv_currency.upper()
         conv.convert()
 
-        res_chart = requests.get(f'{config['kekkai_instance']}/api/getChart/week/', {
+        req_chart = requests.get(f'{config['kekkai_instance']}/api/getChart/week/', {
             'from_currency': from_currency,
             'conv_currency': conv_currency
         }, timeout=3)
 
-        if not HTTPStatus(res_chart.status_code).is_success:
-            res_chart = None
+        if not HTTPStatus(req_chart.status_code).is_success:
+            req_chart = None
         else:
-            res_chart = res_chart.json()['message']
+            req_chart = req_chart.json().get('message', None)
 
-        result = f'{format_number(conv.amount)} {conv.from_currency} = {conv.conv_amount} {conv.conv_currency}' \
-                    f'\n{f'[График]({res_chart})' if res_chart else ''}'
-        return await reply(result_id, result, None, res_chart, query)
+        await reply(result_id,
+                    [
+                        (
+                            f'{format_number(conv.amount)} {conv.from_currency} = {conv.conv_amount} {conv.conv_currency}' \
+                            f'\n{f'[График]({req_chart})' if req_chart else ''}',
+                            None,
+                            req_chart
+                        ),
+                        (
+                            f'{format_number(conv.amount)} {conv.from_currency} = {conv.conv_amount} {conv.conv_currency}',
+                            None,
+                            None
+                        )
+                    ],
+                    query)
 
     except Exception as e:
         print(e)
 
 
-async def reply(
-                    result_id: str | None, 
-                    title: str, 
-                    desc: str | None,
-                    img: str | None,
-                    query: types.InlineQuery | types.Message,
-                ) -> None:
+async def reply(result_id: str, args: list, query: types.InlineQuery) -> None:
+    if not args:
+        return
 
-    if isinstance(query, types.InlineQuery):
-        article = [None]
-        article[0] = types.InlineQueryResultArticle(
-            id=result_id,
-            title=title,
-            thumbnail_url=img,
-            description=desc,
+    articles = []
+
+    for idx, arg in enumerate(args):
+        title = arg[0]
+        description = arg[1] if arg[1] else None
+        img = arg[2] if arg[2] else None
+
+
+        article = types.InlineQueryResultArticle(
+            id=f"{result_id}_{idx}",
+            title=remove_markdown(title).replace('График', ''),
+            thumbnail_url=img, 
+            description=description,
             input_message_content=types.InputTextMessageContent(
                 message_text=title,
                 parse_mode='markdown'
             )
         )
 
-        await query.answer(
-            article,
-            parse_mode='markdown',
-            cache_time=0,
-            is_personal=True,
-        )
-    else:
-        await query.answer(f'{title} \n{'' if desc else ''}')
+        articles.append(article)
+
+    await query.answer(
+        results=articles,
+        parse_mode='markdown',
+        cache_time=0,
+        is_personal=True
+    )
+
+def remove_markdown(text: str) -> str:
+    text = re.sub(r'\*([^\*]+)\*', r'\1', text)
+    text = re.sub(r'\_([^\_]+)\_', r'\1', text)
+    text = re.sub(r'\[([^\[]+)\]\([^\)]+\)', r'\1', text)
+    text = re.sub(r'[`]+([^`]+)`+', r'\1', text)
+    text = re.sub(r'~~([^~]+)~~', r'\1', text)
+    text = re.sub(r'\[([^\[]+)\]\([^\)]+\)', '', text)
+    return text
+
 
 async def main() -> None:
     bot = Bot(config['telegram_token'])
