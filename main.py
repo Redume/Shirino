@@ -27,11 +27,12 @@ async def currency(query: types.InlineQuery) -> None:
 
         conv = Converter()
 
-        if len(args) < 2:
+        if len(args) <= 2:
             return await reply(result_id, 
                                 [("2 or 3 arguments are required.", 
                                 '@shirino_bot USD RUB \n'
-                                '@shirino_bot 12 USD RUB')], 
+                                '@shirino_bot 12 USD RUB',
+                                  None, None)],
                                 query)
 
         if len(args) == 3:
@@ -42,10 +43,10 @@ async def currency(query: types.InlineQuery) -> None:
             from_currency = args[0]
             conv_currency = args[1]
         else:
-            return await reply(result_id, [('The source and target currency could not be determined.')], query)
+            return await reply(result_id, [('The source and target currency could not be determined.', None, None)], query)
 
         if not from_currency or not conv_currency:
-            return await reply(result_id, [('The currency exchange rate could not be found.')], query)
+            return await reply(result_id, [('The currency exchange rate could not be found.', None, None)], query)
 
         conv.from_currency = from_currency.upper()
         conv.conv_currency = conv_currency.upper()
