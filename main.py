@@ -27,7 +27,7 @@ async def currency(query: types.InlineQuery) -> None:
 
         conv = Converter()
 
-        if len(args) <= 2:
+        if len(args) < 2:
             return await reply(result_id, 
                                 [("2 or 3 arguments are required.", 
                                 '@shirino_bot USD RUB \n'
