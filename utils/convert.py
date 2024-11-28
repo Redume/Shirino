@@ -5,7 +5,7 @@ import json
 import re
 
 from decimal import Decimal, ROUND_DOWN
-from function.format_number import format_number
+from utils.format_number import format_number
 
 config = yaml.safe_load(open('config.yaml'))
 
