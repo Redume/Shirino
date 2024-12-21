@@ -4,6 +4,9 @@ import requests
 import json
 import re
 
+from datetime import datetime
+from http import HTTPStatus
+
 from decimal import Decimal, ROUND_DOWN
 from utils.format_number import format_number
 
@@ -21,14 +24,14 @@ class Converter:
         self.conv_currency: str = ''
 
     def convert(self) -> None:
-        if not self.ddg():
-            self.coinapi()
+        if not self.kekkai():
+            self.kekkai()
 
         number = Decimal(str(self.conv_amount))
 
         self.conv_amount = format_number(number.quantize(Decimal('1.00'), rounding=ROUND_DOWN))
 
-    def ddg(self) -> bool:
+    def ddg(self) -> None:
         res = requests.get('https://duckduckgo.com/js/spice/currency'
                            f'/{self.amount}'
                            f'/{self.from_currency}'
@@ -41,7 +44,7 @@ class Converter:
         del data['timestamp']
 
         if len(data.get('to')) == 0:
-            return False
+            raise RuntimeError('Failed to get the exchange rate from DDG')
 
         conv = data.get('to')[0]
         conv_amount = conv.get('mid')
@@ -51,35 +54,22 @@ class Converter:
 
         self.conv_amount = float(conv_amount)
 
+    def kekkai(self) -> bool:
+        date = datetime.today().strftime('%Y-%m-%d')
+
+        res = requests.get(f'{config['kekkai_instance']}/api/getRate/', {
+            'from_currency': self.from_currency,
+            'conv_currency': self.conv_currency,
+            'date': date
+        }, timeout=3)
+
+        data = res.json()
+
+        if not HTTPStatus(res.status_code).is_success:
+            return None
+
+        self.conv_amount = float(data.get('rate') * self.amount)
+
         return True
 
-    def coinapi(self, depth: int = config['coinapi_keys']) -> None:
-        if depth <= 0:
-            raise RecursionError('Rate limit on all tokens')
 
-        resp = requests.get(
-            (
-                'https://rest.coinapi.io/v1/exchangerate'
-                f'/{self.from_currency}'
-                f'/{self.conv_currency}'
-            ),
-            headers={
-                'X-CoinAPI-Key': config['coinapi_keys'][coinapi_active[0]],
-            },
-            timeout=config['timeout'],
-        )
-
-        if resp.status_code == 429:
-            rotate_token(config['coinapi_keys'], coinapi_active)
-            self.coinapi(depth - 1)
-
-        data = resp.json()
-        rate = data.get('rate')
-        if rate is None:
-            raise RuntimeError('Failed to get the exchange rate from CoinAPI')
-
-        self.conv_amount = float(rate * self.amount)
-
-
-def rotate_token(lst, active) -> None:
-    active[0] = (active[0] + 1) % len(lst)
