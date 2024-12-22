@@ -54,22 +54,26 @@ class Converter:
 
         self.conv_amount = float(conv_amount)
 
+
     def kekkai(self) -> bool:
         date = datetime.today().strftime('%Y-%m-%d')
 
-        res = requests.get(f'{config['kekkai_instance']}/api/getRate/', {
-            'from_currency': self.from_currency,
-            'conv_currency': self.conv_currency,
-            'date': date
-        }, timeout=3)
+        try:
+            res = requests.get(f'{config['kekkai_instance']}/api/getRate/', {
+                'from_currency': self.from_currency,
+                'conv_currency': self.conv_currency,
+                'date': date
+            }, timeout=3)
 
-        data = res.json()
+            data = res.json()
 
-        if not HTTPStatus(res.status_code).is_success:
-            return None
+            if not HTTPStatus(res.status_code).is_success:
+                return False
 
-        self.conv_amount = float(data.get('rate') * self.amount)
+            self.conv_amount = float(data.get('rate') * self.amount)
 
-        return True
+            return True
+        except requests.exceptions.ConnectionError:
+            return False
 
 
