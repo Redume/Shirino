@@ -12,10 +12,6 @@ from utils.format_number import format_number
 
 config = yaml.safe_load(open('config.yaml'))
 
-coinapi_len = len(config['coinapi_keys'])
-coinapi_active = [0]
-
-
 class Converter:
     def __init__(self):
         self.amount: float = 1.0
