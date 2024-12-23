@@ -63,7 +63,7 @@ class Converter:
                 'from_currency': self.from_currency,
                 'conv_currency': self.conv_currency,
                 'date': date,
-                'conv_amount': self.conv_amount
+                'conv_amount': self.amount
             }, timeout=3)
 
             data = res.json()
