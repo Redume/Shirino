@@ -15,7 +15,7 @@ config = yaml.safe_load(open('config.yaml'))
 
 @dp.inline_query()
 async def currency(query: types.InlineQuery) -> None:
-    global result, from_currency, conv_currency
+    global from_currency, conv_currency
 
     try:
         text = query.query.lower()
@@ -33,7 +33,7 @@ async def currency(query: types.InlineQuery) -> None:
                                 query)
 
         if len(args) == 3:
-            conv.amount = float(args[0])
+            conv.amount = float(args[0].replace(',', '.'))
             from_currency = args[1]
             conv_currency = args[2]
         elif len(args) == 2:
