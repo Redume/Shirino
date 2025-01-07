@@ -12,6 +12,7 @@ from utils.format_number import format_number
 
 config = yaml.safe_load(open('config.yaml'))
 
+
 class Converter:
     def __init__(self):
         self.amount: float = 1.0
@@ -19,59 +20,59 @@ class Converter:
         self.from_currency: str = ''
         self.conv_currency: str = ''
 
+
     def convert(self) -> None:
-        if not self.kekkai():
-            self.ddg()
+        if not self.kekkai() and not self.ddg():
+            raise RuntimeError('Failed to convert via Kekkai or DDG')
 
         number = Decimal(str(self.conv_amount))
-
         self.conv_amount = format_number(number.quantize(Decimal('1.00'), rounding=ROUND_DOWN))
 
-    def ddg(self) -> None:
-        res = requests.get('https://duckduckgo.com/js/spice/currency'
-                           f'/{self.amount}'
-                           f'/{self.from_currency}'
-                           f'/{self.conv_currency}')
 
-        data = json.loads(re.findall(r'\(\s*(.*)\s*\);$', res.text)[0])
+    def ddg(self) -> bool:
+        try:
+            res = requests.get(
+                f'https://duckduckgo.com/js/spice/currency/'
+                f'{self.amount}/{self.from_currency}/{self.conv_currency}',
+                timeout=3
+            )
 
-        del data['terms']
-        del data['privacy']
-        del data['timestamp']
+            data = json.loads(re.findall(r'\(\s*(.*)\s*\);$', res.text)[0])
 
-        if len(data.get('to')) == 0:
-            raise RuntimeError('Failed to get the exchange rate from DDG')
+            for key in ['terms', 'privacy', 'timestamp']:
+                data.pop(key, None)
 
-        conv = data.get('to')[0]
-        conv_amount = conv.get('mid')
+            if not data.get('to'):
+                return False
 
-        if conv_amount is None:
-            raise RuntimeError('Error when converting currency via DuckDuckGo')
+            self.conv_amount = float(data['to'][0].get('mid', 0.0))
+            return True
 
-        self.conv_amount = float(conv_amount)
-
+        except (requests.exceptions.RequestException, json.JSONDecodeError, IndexError) as e:
+            print(f"Error when requesting DDG: {e}")
+            return False
 
     def kekkai(self) -> bool:
         date = datetime.today().strftime('%Y-%m-%d')
-
         try:
-            res = requests.get(f'{config['kekkai_instance']}/api/getRate/', {
-                'from_currency': self.from_currency,
-                'conv_currency': self.conv_currency,
-                'date': date,
-                'conv_amount': self.amount
-            }, timeout=3)
+            res = requests.get(
+                f"{config['kekkai_instance']}/api/getRate/",
+                params={
+                    'from_currency': self.from_currency,
+                    'conv_currency': self.conv_currency,
+                    'date': date,
+                    'conv_amount': self.amount
+                },
+                timeout=3
+            )
 
-            data = res.json()
-
-            if not HTTPStatus(res.status_code).is_success:
+            if res.status_code != HTTPStatus.OK:
                 return False
 
-
-            self.conv_amount = data.get('conv_amount')
-
+            data = res.json()
+            self.conv_amount = data.get('conv_amount', 0.0)
             return True
-        except requests.exceptions.ConnectionError:
+
+        except (requests.exceptions.ConnectionError, json.JSONDecodeError) as e:
+            print(f"Error when querying Kekkai: {e}")
             return False
-
-
