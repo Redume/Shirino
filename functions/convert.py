@@ -37,8 +37,7 @@ class Converter:
                 'conv_currency': self.conv_currency,
                 'date': date,
                 'conv_amount': self.amount
-            },
-            timeout=3) as res:
+            }) as res:
                 if not HTTPStatus(res.status).is_success:
                     return False
 
