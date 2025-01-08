@@ -25,14 +25,15 @@ async def currency(query: types.InlineQuery) -> None:
     args = text.split()
     result_id = hashlib.md5(text.encode()).hexdigest()
 
+    get_bot = await bot.get_me()
+
     if len(args) < 2:
-            get_bot = await bot.get_me()
-            return await reply(result_id, 
-                                [("2 or 3 arguments are required.", 
-                                f'@{get_bot.username} USD RUB \n'
-                                f'@{get_bot.username} 12 USD RUB',
-                                  None, None)],
-                                query)
+        return await reply(result_id, 
+                            [("2 or 3 arguments are required.", 
+                            f'@{get_bot.username} USD RUB \n'
+                            f'@{get_bot.username} 12 USD RUB',
+                            None, None)],
+                            query)
 
     conv = Converter()
 
@@ -42,9 +43,13 @@ async def currency(query: types.InlineQuery) -> None:
         try:
             conv.amount = float(args[0].replace(',', '.'))
             if conv.amount < 0:
-                raise ValueError("Negative amounts are not supported.")
+                return await reply(result_id, [("Negative amounts are not supported.", None, None)], query)
+
         except ValueError:
-            return await reply(result_id, [("Please enter a positive amount.", None, None)], query)
+            return await reply(result_id, [("Please enter a valid number for the amount.",
+                                            f'@{get_bot.username} USD RUB \n'
+                                            f'@{get_bot.username} 12 USD RUB',
+                                            None, None)], query)
         
         from_currency = args[1]
         conv_currency = args[2]
