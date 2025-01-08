@@ -1,104 +1,57 @@
-from aiogram import Bot, Dispatcher, types
+import logging
+import sys
 
 import yaml
-import asyncio
 
-import hashlib
+from aiohttp import web
 
-from function.get_chart import get_chart
-from utils.convert import Converter
-from utils.format_number import format_number
-from function.inline_query import reply
+from aiogram import Bot, Dispatcher, Router
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
+from aiogram.filters import CommandStart
+from aiogram.types import Message
+from aiogram.utils.markdown import hbold
+from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 
-dp = Dispatcher()
 config = yaml.safe_load(open('config.yaml'))
 
-@dp.inline_query()
-async def currency(query: types.InlineQuery) -> None:
-    global from_currency, conv_currency
+router = Router()
 
+@router.message()
+async def echo_handler(message: Message) -> None:
     try:
-        text = query.query.lower()
-        args = text.split()
-        result_id = hashlib.md5(text.encode()).hexdigest()
+        # Send a copy of the received message
+        await message.send_copy(chat_id=message.chat.id)
+    except TypeError:
+        # But not all the types is supported to be copied so need to handle it
+        await message.answer("Nice try!")
 
-        conv = Converter()
-
-        if len(args) < 2:
-            return await reply(result_id, 
-                                [("2 or 3 arguments are required.", 
-                                '@shirino_bot USD RUB \n'
-                                '@shirino_bot 12 USD RUB',
-                                  None, None)],
-                                query)
-
-        if len(args) == 3:
-            conv.amount = float(args[0].replace(',', '.'))
-            from_currency = args[1]
-            conv_currency = args[2]
-        elif len(args) == 2:
-            from_currency = args[0]
-            conv_currency = args[1]
-        else:
-            return await reply(result_id,
-                               [
-                                   (
-                                       'The source and target currency could not be determined.',
-                                       None,
-                                       None
-                                   )
-                               ],
-                               query)
-
-        if not from_currency or not conv_currency:
-            return await reply(result_id, [('The currency exchange rate could not be found.', None, None)], query)
-
-        conv.from_currency = from_currency.upper()
-        conv.conv_currency = conv_currency.upper()
-        conv.convert()
-
-        chart = get_chart(from_currency, conv_currency)
-
-        if not chart:
-            return await reply(result_id,
-                               [
-                                   (
-                                       f'{format_number(conv.amount)} {conv.from_currency} '
-                                       f'= {conv.conv_amount} {conv.conv_currency}' \
-                                       f'\n{f'[График]({chart})' if chart else ''}',
-                                       None,
-                                       chart
-                                   )
-                               ],
-                               query)
-
-        await reply(result_id,
-                    [
-                        (
-                            f'{format_number(conv.amount)} {conv.from_currency} '
-                            f'= {conv.conv_amount} {conv.conv_currency}' \
-                            f'\n{f'[График]({chart})' if chart else ''}',
-                            None,
-                            chart
-                        ),
-                        (
-                            f'{format_number(conv.amount)} {conv.from_currency} '
-                            f'= {conv.conv_amount} {conv.conv_currency}',
-                            None,
-                            None
-                        )
-                    ],
-                    query)
-
-    except Exception as e:
-        print(e)
+async def on_startup(bot: Bot) -> None:
+    # Убедитесь, что передаете HTTPS URL
+    await bot.set_webhook(f"{config['webhook']['base_url']}{config['webhook']['path']}", secret_token=config['webhook']['secret_token'])
 
 
+def main() -> None:
+    dp = Dispatcher()
 
-async def main() -> None:
-    bot = Bot(config['telegram_token'])
-    await dp.start_polling(bot)
+    dp.include_router(router)
+    dp.startup.register(on_startup)
+    
+    bot = Bot(token=config['telegram_token'], default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+
+    app = web.Application()
+    webhook_requests_handler = SimpleRequestHandler(
+        dispatcher=dp,
+        bot=bot,
+        secret_token=config['webhook']['secret_token']
+    )
+    webhook_requests_handler.register(app, path=config['webhook']['path'])
+
+    setup_application(app, dp, bot=bot)
+
+    web.run_app(app, host='127.0.0.1', port=8080)
 
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+    main()
