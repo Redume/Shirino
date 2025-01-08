@@ -39,7 +39,13 @@ async def currency(query: types.InlineQuery) -> None:
     from_currency, conv_currency = '', ''
 
     if len(args) == 3:
-        conv.amount = float(args[0].replace(',', '.'))
+        try:
+            conv.amount = float(args[0].replace(',', '.'))
+            if conv.amount < 0:
+                raise ValueError("Negative amounts are not supported.")
+        except ValueError:
+            return await reply(result_id, [("Please enter a positive amount.", None, None)], query)
+        
         from_currency = args[1]
         conv_currency = args[2]
     elif len(args) == 2:
