@@ -3,6 +3,9 @@ services:
     build: .
     image: ghcr.io/shirino/shirino:latest
     restart: unless-stopped
+    volumes:
+      - './config.yaml:/config.yaml'
+
   nginx:
     image: nginx:latest
     ports:
@@ -14,4 +17,4 @@ services:
 
 volumes:
   shirino:
-    driver: locale
+    driver: local
