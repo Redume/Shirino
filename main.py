@@ -78,12 +78,12 @@ async def currency(query: types.InlineQuery) -> None:
                             )],
                             query)
 
-    if not conv_currency or not from_currency:
-        return await reply(result_id, [('The currency exchange rate could not be found.', None, None)], query)
-
     conv.from_currency = from_currency.upper()
     conv.conv_currency = conv_currency.upper()
-    await conv.convert()
+    try:
+        await conv.convert()
+    except RuntimeError as e:
+        return await reply(result_id, [('The currency exchange rate could not be determined', None, None)], query)
 
     chart = await create_chart(from_currency, conv_currency)
 
