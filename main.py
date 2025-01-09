@@ -26,8 +26,8 @@ async def start(message: types.Message):
     await message.reply(
         'Shirino is a telegram bot for converting fiat or cryptocurrency. '
         'The example of use occurs via inline query:\n'
-        f'@{get_bot.username} USD RUB \n'
-        f'@{get_bot.username} 12 USD RUB \n\n'
+        f'`@{get_bot.username} USD RUB` \n'
+        f'`@{get_bot.username} 12 USD RUB` \n\n'
         '[Source Code](https://github.com/Redume/Shirino)',
         parse_mode='markdown'
     )
