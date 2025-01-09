@@ -11,6 +11,7 @@ from aiogram import Bot, Dispatcher, Router, types
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
+from aiogram.filters import CommandStart
 
 import hashlib
 
@@ -18,6 +19,19 @@ config = yaml.safe_load(open('config.yaml'))
 bot = Bot(token=config['telegram_token'], default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 
 router = Router()
+
+@router.message(CommandStart())
+async def start(message: types.Message):
+    get_bot = await bot.get_me()
+    await message.reply(
+        'Shirino is a telegram bot for converting fiat or cryptocurrency. '
+        'The example of use occurs via inline query:\n'
+        f'@{get_bot.username} USD RUB \n'
+        f'@{get_bot.username} 12 USD RUB \n\n'
+        '[Source Code](https://github.com/Redume/Shirino)',
+        parse_mode='markdown'
+    )
+
 
 @router.inline_query()
 async def currency(query: types.InlineQuery) -> None:
@@ -28,8 +42,8 @@ async def currency(query: types.InlineQuery) -> None:
     get_bot = await bot.get_me()
 
     if len(args) < 2:
-        return await reply(result_id, 
-                            [("2 or 3 arguments are required.", 
+        return await reply(result_id,
+                            [("2 or 3 arguments are required.",
                             f'@{get_bot.username} USD RUB \n'
                             f'@{get_bot.username} 12 USD RUB',
                             None, None)],
@@ -50,7 +64,7 @@ async def currency(query: types.InlineQuery) -> None:
                                             f'@{get_bot.username} USD RUB \n'
                                             f'@{get_bot.username} 12 USD RUB',
                                             None, None)], query)
-        
+
         from_currency = args[1]
         conv_currency = args[2]
     elif len(args) == 2:
@@ -74,12 +88,12 @@ async def currency(query: types.InlineQuery) -> None:
     chart = await create_chart(from_currency, conv_currency)
 
     message = f'{format_number(conv.amount)} {conv.from_currency} = {conv.conv_amount} {conv.conv_currency}'
-    
+
     results = [(message, None, None)]
-    
+
     if chart:
         results.insert(0, (f'{message}\n[График]({chart})', None, chart))
-    
+
     await reply(result_id, results, query)
 
 
@@ -87,7 +101,7 @@ async def on_startup(bot: Bot) -> None:
     await bot.set_webhook(
         f"{config['webhook']['base_url']}{config['webhook']['path']}", 
         secret_token=config['webhook']['secret_token'],
-        allowed_updates=['inline_query']
+        allowed_updates=['inline_query', 'message']
         )
 
 
@@ -96,7 +110,7 @@ def main() -> None:
 
     dp.include_router(router)
     dp.startup.register(on_startup)
-    
+
     app = web.Application()
     webhook_requests_handler = SimpleRequestHandler(
         dispatcher=dp,
