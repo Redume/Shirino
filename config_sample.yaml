@@ -1,5 +1,5 @@
 webhook:
-    secret_token: 'j_!?TD]nK6!nu'EZ654b'
+    secret_token: 'jTDnK6nuEZ654b'
     base_url: 'example.com'
     path: '/webhook'
 telegram_token:
