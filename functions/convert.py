@@ -1,14 +1,12 @@
-from utils.format_number import format_number
-
-import yaml
-
-import aiohttp
 import json
 import re
-
 from datetime import datetime
+from decimal import Decimal
 from http import HTTPStatus
-from decimal import Decimal, ROUND_DOWN
+
+import aiohttp
+import yaml
+
 from utils.format_number import format_number
 
 config = yaml.safe_load(open('config.yaml'))
@@ -24,8 +22,7 @@ class Converter:
         if not await self.kekkai():
             await self.ddg()
 
-        number = Decimal(str(self.conv_amount))
-        self.conv_amount = format_number(number.quantize(Decimal('1.0000'), rounding=ROUND_DOWN))
+        self.conv_amount = format_number(Decimal(self.conv_amount))
 
 
     async def kekkai(self) -> bool:
