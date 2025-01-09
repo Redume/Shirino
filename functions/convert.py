@@ -58,7 +58,7 @@ class Converter:
                 for key in ['terms', 'privacy', 'timestamp']:
                     data.pop(key, None)
 
-                if len(data.get('to')) == 0:
+                if not data.get('to'):
                     raise RuntimeError('Failed to get the exchange rate from DuckDuckGo')
 
                 conv = data.get('to')[0]
