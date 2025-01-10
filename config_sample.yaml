@@ -1,4 +1,6 @@
-debug: false           # debug logging
-timeout: 2             # http requests timeout
-telegram_token:        # telegram bot token
-kekkai_instance: 'https://kekkai-api.redume.su/'
+webhook:
+    secret_token: 'jTDnK6nuEZ654b'
+    base_url: 'example.com'
+    path: '/webhook'
+telegram_token:
+kekkai_instance: 'https://kekkai-api.redume.su'

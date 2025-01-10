@@ -1,7 +1,6 @@
-import re
-
 from aiogram import types
 
+import re
 
 async def reply(result_id: str, args: list, query: types.InlineQuery) -> None:
     if not args:
@@ -17,7 +16,7 @@ async def reply(result_id: str, args: list, query: types.InlineQuery) -> None:
 
         article = types.InlineQueryResultArticle(
             id=f"{result_id}_{idx}",
-            title=re.sub(r'\[([^\[]+)\]\([^\)]+\)', '', title).replace('График', ''),
+            title=re.sub(r'\bГрафик\b|\[([^\]]+)\]\([^)]+\)', '', title, flags=re.IGNORECASE),
             thumbnail_url=img,
             description=description,
             input_message_content=types.InputTextMessageContent(

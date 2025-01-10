@@ -3,3 +3,18 @@ services:
     build: .
     image: ghcr.io/shirino/shirino:latest
     restart: unless-stopped
+    volumes:
+      - './config.yaml:/config.yaml'
+
+  nginx:
+    image: nginx:latest
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./CertSSL:/etc/nginx/ssl
+
+volumes:
+  shirino:
+    driver: local
