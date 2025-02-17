@@ -16,7 +16,7 @@ async def reply(result_id: str, args: list, query: types.InlineQuery) -> None:
 
         article = types.InlineQueryResultArticle(
             id=f"{result_id}_{idx}",
-            title=re.sub(r'\bГрафик\b|\[([^\]]+)\]\([^)]+\)', '', title, flags=re.IGNORECASE),
+            title=re.sub(r'\bChart\b|\[([^\]]+)\]\([^)]+\)', '', title, flags=re.IGNORECASE),
             thumbnail_url=img,
             description=description,
             input_message_content=types.InputTextMessageContent(

@@ -92,7 +92,7 @@ async def currency(query: types.InlineQuery) -> None:
     results = [(message, None, None)]
 
     if chart:
-        results.insert(0, (f'{message}\n[График]({chart})', None, chart))
+        results.insert(0, (f'{message}\n[Chart]({chart})', None, chart))
 
     await reply(result_id, results, query)
 
