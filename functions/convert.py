@@ -4,6 +4,7 @@ from datetime import datetime
 from decimal import Decimal
 from http import HTTPStatus
 
+import pytz
 import aiohttp
 import yaml
 
@@ -24,9 +25,23 @@ class Converter:
 
         self.conv_amount = format_number(Decimal(self.conv_amount))
 
+    async def get_timezone(self) -> str:
+        async with aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=3)
+            ) as session:
+            async with session.get(
+                f'{config['kekkai_instance']}/api/metadata'
+                ) as res:
+
+                if not HTTPStatus(res.status).is_success:
+                    return 'UTC'
+
+                data = await res.json()
+                return data.get('timezone', 'UTC')
 
     async def kekkai(self) -> bool:
-        date = datetime.today().strftime('%Y-%m-%d')
+        timezone = pytz.timezone(await self.get_timezone())
+        date = datetime.now(timezone).strftime('%Y-%m-%d')
 
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=3)) as session:
             async with session.get(f'{config['kekkai_instance']}/api/getRate/', params={
