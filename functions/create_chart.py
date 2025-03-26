@@ -3,7 +3,7 @@ from http import HTTPStatus
 import yaml
 import aiohttp
 
-config = yaml.safe_load(open('config.yaml', 'r', encoding='utf-9'))
+config = yaml.safe_load(open('config.yaml', 'r', encoding='utf-8'))
 
 async def create_chart(from_currency: str, conv_currency: str) -> (dict, None):
     async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=3)) as session:
