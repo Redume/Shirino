@@ -11,7 +11,10 @@ def format_number(number):
         return formatted_integer
 
     fractional_str = f"{fractional_part:.30f}".split('.')[1]
-    first_non_zero = next((i for i, char in enumerate(fractional_str) if char != '0'), len(fractional_str))
+    first_non_zero = next(
+        (i for i, char in enumerate(fractional_str) if char != '0'),
+        len(fractional_str)
+        )
     result_fractional = fractional_str[:first_non_zero + 3]
     result_fractional = result_fractional.rstrip('0')
 

@@ -1,8 +1,4 @@
-from functions.convert import Converter
-from utils.format_number import format_number
-from utils.inline_query import reply
-from functions.create_chart import create_chart
-
+import hashlib
 import yaml
 
 from aiohttp import web
@@ -13,10 +9,16 @@ from aiogram.enums import ParseMode
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from aiogram.filters import CommandStart
 
-import hashlib
+from functions.convert import Converter
+from functions.create_chart import create_chart
+from utils.format_number import format_number
+from utils.inline_query import reply
 
-config = yaml.safe_load(open('config.yaml'))
-bot = Bot(token=config['telegram_token'], default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+config = yaml.safe_load(open('config.yaml', 'r', encoding='utf-8'))
+bot = Bot(
+    token=config['telegram_token'],
+    default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+    )
 
 router = Router()
 
@@ -57,13 +59,26 @@ async def currency(query: types.InlineQuery) -> None:
         try:
             conv.amount = float(args[0].replace(',', '.'))
             if conv.amount < 0:
-                return await reply(result_id, [("Negative amounts are not supported.", None, None)], query)
+                return await reply(
+                    result_id,
+                    [
+                        ("Negative amounts are not supported.", None, None)
+                        ],
+                        query
+                        )
 
         except ValueError:
-            return await reply(result_id, [("Please enter a valid number for the amount.",
-                                            f'@{get_bot.username} USD RUB \n'
-                                            f'@{get_bot.username} 12 USD RUB',
-                                            None, None)], query)
+            return await reply(
+                result_id,
+                [
+                    (
+                        "Please enter a valid number for the amount.",
+                        f'@{get_bot.username} USD RUB \n'
+                        f'@{get_bot.username} 12 USD RUB',
+                        None, None
+                    )
+                ],
+                query)
 
         from_currency = args[1]
         conv_currency = args[2]
@@ -71,23 +86,37 @@ async def currency(query: types.InlineQuery) -> None:
         from_currency = args[0]
         conv_currency = args[1]
     else:
-        return await reply(result_id,
-                            [(
-                                'The source and target currency could not be determined.',
-                                None, None
-                            )],
-                            query)
+        return await reply(
+            result_id,
+            [
+                (
+                    'The source and target currency could not be determined.',
+                    None, None
+                )
+            ],
+            query
+        )
 
     conv.from_currency = from_currency.upper()
     conv.conv_currency = conv_currency.upper()
     try:
         await conv.convert()
-    except RuntimeError as e:
-        return await reply(result_id, [('The currency exchange rate could not be determined', None, None)], query)
+    except RuntimeError:
+        return await reply(
+            result_id,
+            [
+                (
+                    'The currency exchange rate could not be determined', 
+                    None, None
+                )
+            ],
+            query
+        )
 
     chart = await create_chart(from_currency, conv_currency)
 
-    message = f'{format_number(conv.amount)} {conv.from_currency} = {conv.conv_amount} {conv.conv_currency}'
+    message = f'{format_number(conv.amount)} {conv.from_currency} ' \
+    f'= {conv.conv_amount} {conv.conv_currency}'
 
     results = [(message, None, None)]
 
@@ -99,7 +128,7 @@ async def currency(query: types.InlineQuery) -> None:
 
 async def on_startup(bot: Bot) -> None:
     await bot.set_webhook(
-        f"{config['webhook']['base_url']}{config['webhook']['path']}", 
+        f"{config['webhook']['base_url']}{config['webhook']['path']}",
         secret_token=config['webhook']['secret_token'],
         allowed_updates=['inline_query', 'message']
         )

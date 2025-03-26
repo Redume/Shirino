@@ -1,6 +1,6 @@
-from aiogram import types
-
 import re
+
+from aiogram import types
 
 async def reply(result_id: str, args: list, query: types.InlineQuery) -> None:
     if not args:
