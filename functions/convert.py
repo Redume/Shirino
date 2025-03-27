@@ -29,18 +29,23 @@ class Converter:
             timeout=aiohttp.ClientTimeout(total=3)
             ) as session:
             async with session.get(
-                f'{config['kekkai_instance']}/api/metadata'
+                f"{config['kekkai_instance']}/api/metadata"
                 ) as res:
 
                 if not HTTPStatus(res.status).is_success:
-                    return 'UTC'
+                    return (
+                        datetime.now() - timedelta(1)
+                        ).strftime('%Y-%m-%d')
 
                 data = await res.json()
 
-                return data.get('last_date', datetime.now() - timedelta(1))
+                return data.get(
+                    'last_date', 
+                    (datetime.now() - timedelta(1)).strftime('%Y-%m-%d')
+                    )
 
     async def kekkai(self) -> bool:
-        date = datetime.strftime(await self.get_lastdate(), '%Y-%m-%d')
+        date = await self.get_lastdate()
 
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=3)) as session:
             async with session.get(f'{config['kekkai_instance']}/api/getRate/', params={
