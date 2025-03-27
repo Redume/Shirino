@@ -9,7 +9,7 @@ import yaml
 
 from utils.format_number import format_number
 
-config = yaml.safe_load(open('config.yaml', 'r', encoding='utf-8'))
+config = yaml.safe_load(open('../config.yaml', 'r', encoding='utf-8'))
 
 class Converter:
     def __init__(self):
