@@ -1,8 +1,8 @@
 services:
   shirino:
-    build: .
-    image: ghcr.io/shirino/shirino:latest
-    restart: unless-stopped
+    build:
+      context: ./
+      dockerfile: Dockerfile
     volumes:
       - './config.yaml:/config.yaml'
 
