@@ -14,7 +14,7 @@ from functions.create_chart import create_chart
 from utils.format_number import format_number
 from utils.inline_query import reply
 
-config = yaml.safe_load(open('config.yaml', 'r', encoding='utf-8'))
+config = yaml.safe_load(open('../config.yaml', 'r', encoding='utf-8'))
 bot = Bot(
     token=config['telegram_token'],
     default=DefaultBotProperties(parse_mode=ParseMode.HTML)
