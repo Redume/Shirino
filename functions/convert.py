@@ -1,10 +1,9 @@
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from http import HTTPStatus
 
-import pytz
 import aiohttp
 import yaml
 
@@ -25,7 +24,7 @@ class Converter:
 
         self.conv_amount = format_number(Decimal(self.conv_amount))
 
-    async def get_timezone(self) -> str:
+    async def get_lastdate(self) -> str:
         async with aiohttp.ClientSession(
             timeout=aiohttp.ClientTimeout(total=3)
             ) as session:
@@ -37,11 +36,11 @@ class Converter:
                     return 'UTC'
 
                 data = await res.json()
-                return data.get('timezone', 'UTC')
+
+                return data.get('last_date', datetime.now() - timedelta(1))
 
     async def kekkai(self) -> bool:
-        timezone = pytz.timezone(await self.get_timezone())
-        date = datetime.now(timezone).strftime('%Y-%m-%d')
+        date = datetime.strftime(await self.get_lastdate(), '%Y-%m-%d')
 
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=3)) as session:
             async with session.get(f'{config['kekkai_instance']}/api/getRate/', params={
@@ -57,7 +56,6 @@ class Converter:
                 self.conv_amount = data.get('conv_amount', 0.0)
 
                 return True
-
 
     async def ddg(self) -> None:
         async with aiohttp.ClientSession(
