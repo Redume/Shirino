@@ -17,4 +17,4 @@ async def create_chart(from_currency: str, conv_currency: str) -> (dict, None):
 
             data = await res.json()
 
-            return data.get('message', None)
+            return data.get('detail', None)
