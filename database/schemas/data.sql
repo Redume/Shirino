@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS users (
+    user_id INTEGER UNIQUE NOT NULL,
+    chart BOOLEAN DEFAULT 1,
+    lang TEXT DEFAULT 'en'
+);

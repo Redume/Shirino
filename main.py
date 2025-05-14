@@ -13,12 +13,14 @@ from functions.convert import Converter
 from functions.create_chart import create_chart
 from utils.format_number import format_number
 from utils.inline_query import reply
+from database.server import Database
 
 config = yaml.safe_load(open('../config.yaml', 'r', encoding='utf-8'))
 bot = Bot(
     token=config['telegram_token'],
     default=DefaultBotProperties(parse_mode=ParseMode.HTML)
     )
+db = Database('shirino.db')
 
 router = Router()
 
@@ -127,6 +129,8 @@ async def currency(query: types.InlineQuery) -> None:
 
 
 async def on_startup(bot: Bot) -> None:
+    await db.connect()
+    await db._create_table()
     await bot.set_webhook(
         f"{config['webhook']['base_url']}{config['webhook']['path']}",
         secret_token=config['webhook']['secret_token'],
@@ -134,11 +138,16 @@ async def on_startup(bot: Bot) -> None:
         )
 
 
+async def on_shutdown():
+    await db.disconnect()
+
+
 def main() -> None:
     dp = Dispatcher()
 
     dp.include_router(router)
     dp.startup.register(on_startup)
+    dp.shutdown.register(on_shutdown)
 
     app = web.Application()
     webhook_requests_handler = SimpleRequestHandler(
