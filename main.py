@@ -23,7 +23,7 @@ bot = Bot(
 router = Router()
 
 @router.message(CommandStart())
-async def start(message: types.Message):
+async def start(message: types.Message) -> None:
     get_bot = await bot.get_me()
     await message.reply(
         'Shirino is a telegram bot for converting fiat or cryptocurrency. '
