@@ -1,6 +1,7 @@
-from aiogram import CommandStart, types, Router
+from aiogram import types, Router
+from aiogram.filters import CommandStart
 
-from main import bot
+from bot import bot
 
 router = Router()
 
