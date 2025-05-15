@@ -1,8 +1,9 @@
 import hashlib
 
-from aiogram import Command, types, Router
+from aiogram import types, Router
+from aiogram.filters import Command
 
-from main import bot
+from bot import bot
 from functions.convert import Converter
 from functions.create_chart import create_chart
 from utils.format_number import format_number
