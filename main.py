@@ -6,11 +6,9 @@ from aiogram import Dispatcher
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 
 from commands import currency, start, settings
-from database.server import Database
-from bot import bot
+from bot import bot, db
 
 config = yaml.safe_load(open('../config.yaml', 'r', encoding='utf-8'))
-db = Database('shirino.db')
 
 async def on_startup(bot: bot) -> None:
     await db.connect()
@@ -18,7 +16,7 @@ async def on_startup(bot: bot) -> None:
     await bot.set_webhook(
         f"{config['webhook']['base_url']}{config['webhook']['path']}",
         secret_token=config['webhook']['secret_token'],
-        allowed_updates=['inline_query', 'message']
+        allowed_updates=['inline_query', 'message', 'callback_query']
         )
 
 
