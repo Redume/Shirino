@@ -5,6 +5,7 @@ services:
       dockerfile: Dockerfile
     volumes:
       - './config.yaml:/config.yaml'
+      - 'shirino-db:/data'
 
   nginx:
     image: nginx:latest
@@ -18,3 +19,4 @@ services:
 volumes:
   shirino:
     driver: local
+  shirino-db:
