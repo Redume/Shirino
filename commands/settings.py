@@ -1,6 +1,6 @@
 from typing import Optional, Tuple, List
 from aiogram import Router, types
-from aiogram.filters import Command, Text
+from aiogram.filters import Command
 from aiogram.types import (
     InlineKeyboardMarkup,
     InlineKeyboardButton,
@@ -170,7 +170,7 @@ async def settings_handler(message: types.Message):
     )
 
 
-@router.callback_query(Text("setting_lang"))
+@router.callback_query(lambda c: c.data == "setting_lang")
 async def show_language_menu(callback: CallbackQuery):
     locale = await get_user_locale(callback.from_user.id)
 
@@ -187,7 +187,7 @@ async def show_language_menu(callback: CallbackQuery):
     )
 
 
-@router.callback_query(Text(startswith="lang_"))
+@router.callback_query(lambda c: c.data and c.data.startswith("lang_"))
 async def language_selected(callback: CallbackQuery):
     lang = callback.data.split("_")[1]
     await db.update(
@@ -210,9 +210,10 @@ async def language_selected(callback: CallbackQuery):
     )
     await callback.answer(
         locale.get("language_set").format(lang=lang.upper())
-    )
+        )
 
-@router.callback_query(Text("back_to_settings"))
+
+@router.callback_query(lambda c: c.data == "back_to_settings")
 async def back_to_settings(callback: CallbackQuery):
     locale = await get_user_locale(callback.from_user.id)
 
@@ -235,7 +236,8 @@ async def back_to_settings(callback: CallbackQuery):
         callback, locale.get("settings_title"), settings_keyboard
     )
 
-@router.callback_query(Text("setting_chart"))
+
+@router.callback_query(lambda c: c.data == "setting_chart")
 async def show_chart_settings(callback: CallbackQuery):
     data = await db.fetch(
         'SELECT chart, chart_period, lang FROM users WHERE user_id = $1',
@@ -247,7 +249,9 @@ async def show_chart_settings(callback: CallbackQuery):
     chart_status = bool(data.get("chart", 1))
     period = data.get("chart_period") or "week"
 
-    status_text = locale.get("enabled") if chart_status else locale.get("disabled")
+    status_text = locale.get("enabled") \
+        if chart_status \
+            else locale.get("disabled")
     period_text = locale.get(period, period)
 
     text = (
@@ -259,11 +263,12 @@ async def show_chart_settings(callback: CallbackQuery):
 
     await safe_edit_message_text(callback, text, keyboard)
 
-@router.callback_query(Text("chart_toggle"))
+
+@router.callback_query(lambda c: c.data == "chart_toggle")
 async def toggle_chart(callback: CallbackQuery):
     data = await db.fetch(
-        'SELECT chart, lang FROM users WHERE user_id = $1',
-        callback.from_user.id,
+        'SELECT chart, lang FROM users WHERE user_id = $1', 
+        callback.from_user.id
     )
     lang = data.get("lang", "en")
     locale = i18n.get_locale(lang)
@@ -272,9 +277,8 @@ async def toggle_chart(callback: CallbackQuery):
     new_status = not current_status
 
     await db.update(
-        'UPDATE users SET chart = $1 WHERE user_id = $2',
-        new_status,
-        callback.from_user.id,
+        'UPDATE users SET chart = $1 WHERE user_id = $2', 
+        new_status, callback.from_user.id
     )
 
     await callback.answer(
@@ -287,16 +291,16 @@ async def toggle_chart(callback: CallbackQuery):
     await show_chart_settings(callback)
 
 
-@router.callback_query(Text("chart_period"))
+@router.callback_query(lambda c: c.data == "chart_period")
 async def change_chart_period(callback: CallbackQuery):
     data = await db.fetch(
-        'SELECT chart_period, lang FROM users WHERE user_id = $1',
-        callback.from_user.id,
+        'SELECT chart_period, lang FROM users WHERE user_id = $1', 
+        callback.from_user.id
     )
     lang = data.get("lang", "en")
     locale = i18n.get_locale(lang)
 
-    current_period = data.get("chart_period")
+    current_period = data.get("chart_period") or "week"
 
     keyboard = build_options_keyboard(
         options=PERIOD_OPTIONS,
@@ -312,13 +316,13 @@ async def change_chart_period(callback: CallbackQuery):
         keyboard
     )
 
-@router.callback_query(Text(startswith="period_"))
+
+@router.callback_query(lambda c: c.data and c.data.startswith("period_"))
 async def set_chart_period(callback: CallbackQuery):
     period = callback.data.split("_")[1]
     await db.update(
-        'UPDATE users SET chart_period = $1 WHERE user_id = $2',
-        period,
-        callback.from_user.id,
+        'UPDATE users SET chart_period = $1 WHERE user_id = $2', 
+        period, callback.from_user.id
     )
 
     locale = await get_user_locale(callback.from_user.id)
