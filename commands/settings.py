@@ -1,6 +1,9 @@
 from aiogram import Router, types
 from aiogram.filters import Command
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import InlineKeyboardMarkup, \
+    InlineKeyboardButton, \
+    CallbackQuery
+import json
 
 from bot import db
 from i18n.localization import I18n
@@ -44,18 +47,20 @@ def build_options_keyboard(
         buttons.append(row)
     if back_callback:
         buttons.append([
-                InlineKeyboardButton(text=locale.get("back"), 
-                callback_data=back_callback)
-            ])
+            InlineKeyboardButton(
+                text=locale.get("back"),
+                callback_data=back_callback
+            )
+        ])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def get_chart_toggle_keyboard(
-    chart_enabled: bool, 
+    chart_enabled: bool,
     locale: dict
-    ) -> InlineKeyboardMarkup:
+) -> InlineKeyboardMarkup:
     toggle_text = locale.get("chart_disable") \
         if chart_enabled \
-            else locale.get("chart_enable")
+        else locale.get("chart_enable")
 
     return InlineKeyboardMarkup(inline_keyboard=[
         [
@@ -75,12 +80,57 @@ def get_chart_toggle_keyboard(
         ],
     ])
 
+def markup_to_json(markup: InlineKeyboardMarkup | None) -> str | None:
+    if markup is None:
+        return None
+    # model_dump() возвращает dict с данными
+    return json.dumps(markup.model_dump(), sort_keys=True)
+
+async def safe_edit_message_text(
+    callback: CallbackQuery,
+    new_text: str,
+    new_reply_markup: InlineKeyboardMarkup | None = None,
+    parse_mode: str | None = None,
+) -> None:
+    message = callback.message
+
+    current_text = (message.text or "").strip()
+    new_text_clean = new_text.strip()
+
+    is_text_same = (current_text == new_text_clean)
+
+    current_markup = message.reply_markup
+
+    is_markup_same = markup_to_json(current_markup) == markup_to_json(new_reply_markup)
+
+    if is_text_same and is_markup_same:
+        await callback.answer()
+        return
+
+    await message.edit_text(
+        new_text,
+        reply_markup=new_reply_markup,
+        parse_mode=parse_mode
+    )
+    await callback.answer()
+
 @router.message(Command("settings"))
 async def settings_handler(message: types.Message):
     data = await db.fetch(
         'SELECT lang FROM users WHERE user_id = $1',
         message.from_user.id
     )
+
+    if not data:
+        await db.insert(
+            'INSERT INTO users (user_id) VALUES (?)',
+            message.from_user.id
+        )
+        data = await db.fetch(
+            'SELECT lang FROM users WHERE user_id = $1',
+            message.from_user.id
+        )
+
     lang = data.get('lang', 'en')
     locale = i18n.get_locale(lang)
 
@@ -101,7 +151,7 @@ async def settings_handler(message: types.Message):
     )
 
 @router.callback_query(lambda c: c.data == "setting_lang")
-async def show_language_menu(callback: types.CallbackQuery):
+async def show_language_menu(callback: CallbackQuery):
     data = await db.fetch(
         'SELECT lang FROM users WHERE user_id = $1',
         callback.from_user.id
@@ -117,14 +167,14 @@ async def show_language_menu(callback: types.CallbackQuery):
         buttons_per_row=2,
         back_callback="back_to_settings"
     )
-    await callback.message.edit_text(
-        locale.get("choose_language"),
-        reply_markup=keyboard
+    await safe_edit_message_text(
+        callback,
+        new_text=locale.get("choose_language"),
+        new_reply_markup=keyboard
     )
-    await callback.answer()
 
 @router.callback_query(lambda c: c.data and c.data.startswith("lang_"))
-async def language_selected(callback: types.CallbackQuery):
+async def language_selected(callback: CallbackQuery):
     lang = callback.data.split("_")[1]
     await db.update(
         'UPDATE users SET lang = $1 WHERE user_id = $2',
@@ -141,16 +191,18 @@ async def language_selected(callback: types.CallbackQuery):
         back_callback="back_to_settings"
     )
 
-    await callback.message.edit_text(
-        locale.get("choose_language"),
-        reply_markup=keyboard
+    await safe_edit_message_text(
+        callback,
+        new_text=locale.get("choose_language"),
+        new_reply_markup=keyboard
     )
+
     await callback.answer(
         locale.get("language_set").format(lang=lang.upper())
-        )
+    )
 
 @router.callback_query(lambda c: c.data == "back_to_settings")
-async def back_to_settings(callback: types.CallbackQuery):
+async def back_to_settings(callback: CallbackQuery):
     data = await db.fetch(
         'SELECT lang FROM users WHERE user_id = $1',
         callback.from_user.id
@@ -169,14 +221,14 @@ async def back_to_settings(callback: types.CallbackQuery):
         ],
     ])
 
-    await callback.message.edit_text(
-        locale.get("settings_title"),
-        reply_markup=settings_keyboard
+    await safe_edit_message_text(
+        callback,
+        new_text=locale.get("settings_title"),
+        new_reply_markup=settings_keyboard
     )
-    await callback.answer()
 
 @router.callback_query(lambda c: c.data == "setting_chart")
-async def show_chart_settings(callback: types.CallbackQuery):
+async def show_chart_settings(callback: CallbackQuery):
     data = await db.fetch(
         'SELECT chart, chart_period, lang FROM users WHERE user_id = $1',
         callback.from_user.id
@@ -187,21 +239,28 @@ async def show_chart_settings(callback: types.CallbackQuery):
     chart_status = bool(data.get('chart', 1))
     period = data.get('chart_period')
 
-    status_text = locale.get("enabled", "Enabled")  \
+    status_text = locale.get("enabled", "Enabled") \
         if chart_status \
         else locale.get("disabled", "Disabled")
 
     period_text = locale.get(period, period)
-    text = f'{locale.get('chart_settings')}\n' \
-    f'{locale.get('status')}: {status_text}\n' \
-    f'{locale.get('period')}: {period_text}'
+
+    text = (
+        f"{locale.get('chart_settings')}\n"
+        f"{locale.get('status')}: {status_text}\n"
+        f"{locale.get('period')}: {period_text}"
+    )
 
     keyboard = get_chart_toggle_keyboard(chart_status, locale)
-    await callback.message.edit_text(text, reply_markup=keyboard)
-    await callback.answer()
+
+    await safe_edit_message_text(
+        callback,
+        new_text=text,
+        new_reply_markup=keyboard
+    )
 
 @router.callback_query(lambda c: c.data == "chart_toggle")
-async def toggle_chart(callback: types.CallbackQuery):
+async def toggle_chart(callback: CallbackQuery):
     data = await db.fetch(
         'SELECT chart, lang FROM users WHERE user_id = $1',
         callback.from_user.id
@@ -218,13 +277,14 @@ async def toggle_chart(callback: types.CallbackQuery):
     )
 
     await callback.answer(
-        locale.get(f"chart_now_{'enabled' if new_status else 'disabled'}", 
-        f"Chart now {'enabled' if new_status else 'disabled'}")
+        locale.get(f"chart_now_{'enabled' if new_status else 'disabled'}",
+                   f"Chart now {'enabled' if new_status else 'disabled'}")
     )
+
     await show_chart_settings(callback)
 
 @router.callback_query(lambda c: c.data == "chart_period")
-async def change_chart_period(callback: types.CallbackQuery):
+async def change_chart_period(callback: CallbackQuery):
     data = await db.fetch(
         'SELECT chart_period, lang FROM users WHERE user_id = $1',
         callback.from_user.id
@@ -242,20 +302,25 @@ async def change_chart_period(callback: types.CallbackQuery):
         buttons_per_row=2,
         back_callback="setting_chart"
     )
-    await callback.message.edit_text(
-        locale.get("choose_period"),
-        reply_markup=keyboard
+    await safe_edit_message_text(
+        callback,
+        new_text=locale.get("choose_period"),
+        new_reply_markup=keyboard
     )
-    await callback.answer()
 
 @router.callback_query(lambda c: c.data and c.data.startswith("period_"))
-async def set_chart_period(callback: types.CallbackQuery):
+async def set_chart_period(callback: CallbackQuery):
     period = callback.data.split("_")[1]
     await db.update(
-        'UPDATE users SET chart_period = $1 WHERE user_id = $2', 
+        'UPDATE users SET chart_period = $1 WHERE user_id = $2',
         period, callback.from_user.id
     )
-    locale = i18n.get_locale(period)
+    data = await db.fetch(
+        'SELECT lang FROM users WHERE user_id = $1',
+        callback.from_user.id
+    )
+    lang = data.get('lang', 'en')
+    locale = i18n.get_locale(lang)
 
     keyboard = build_options_keyboard(
         options=period_options,
@@ -266,9 +331,10 @@ async def set_chart_period(callback: types.CallbackQuery):
         back_callback="setting_chart"
     )
 
-    await callback.message.edit_text(
-        locale.get("choose_period"),
-        reply_markup=keyboard
+    await safe_edit_message_text(
+        callback,
+        new_text=locale.get("choose_period"),
+        new_reply_markup=keyboard
     )
 
     await callback.answer(
