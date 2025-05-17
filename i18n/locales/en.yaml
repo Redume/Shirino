@@ -1,0 +1,42 @@
+# /commands/start.py
+start_message: |
+  Shirino is a telegram bot for converting fiat or cryptocurrency.
+  The example of use occurs via inline query:
+  `@{bot_username} USD RUB`
+  `@{bot_username} 12 USD RUB`
+source_code_button: "Source Code"
+
+# /commands/currency.py
+currency_example: |
+  @{bot_username} USD RUB
+  @{bot_username} 12 USD RUB
+error_not_enough_args: 2 or 3 arguments are required.
+error_invalid_number: "Please enter a valid number for the amount."
+error_negative_amount: "Negative amounts are not supported."
+error_currency_rate: "The currency exchange rate could not be determined."
+error_unknown_currency: "The source and target currency could not be determined."
+chart: "Chart"
+
+# /commands/settings.py
+settings_title: "Bot Settings"
+setting_chart: "Chart Settings"
+setting_lang: "Change Language"
+back: "Back"
+choose_language: "Choose language:"
+language_set: "Language set: {lang}"
+chart_settings: "Chart Settings"
+status: "Status"
+period: "Period"
+enabled: "Enabled"
+disabled: "Disabled"
+chart_disable: "Disable Chart"
+chart_enable: "Enable Chart"
+chart_period: "Chart Period"
+chart_now_enabled: "Chart is now enabled"
+chart_now_disabled: "Chart is now disabled"
+choose_period: "Choose chart period:"
+period_set: "Chart period set to: {period}"
+week: "Week"
+month: "Month"
+quarter: "Quarter"
+year: "Year"
