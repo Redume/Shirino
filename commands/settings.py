@@ -41,8 +41,7 @@ async def get_user_locale(user_id: int) -> dict:
         data = await db.fetch(
             'SELECT lang FROM users WHERE user_id = $1', user_id
         )
-    lang = data.get('lang', 'en')
-    return i18n.get_locale(lang)
+    return i18n.get_locale(data.get('lang', 'en'))
 
 
 def build_options_keyboard(
@@ -252,7 +251,7 @@ async def show_chart_settings(callback: CallbackQuery):
     locale = i18n.get_locale(lang)
 
     chart_status = bool(data.get("chart", 1))
-    period = data.get("chart_period") or "week"
+    period = data.get("chart_period")
 
     status_text = locale.get("enabled") \
         if chart_status \
@@ -305,7 +304,7 @@ async def change_chart_period(callback: CallbackQuery):
     lang = data.get("lang", "en")
     locale = i18n.get_locale(lang)
 
-    current_period = data.get("chart_period") or "week"
+    current_period = data.get("chart_period")
 
     keyboard = build_options_keyboard(
         options=PERIOD_OPTIONS,
