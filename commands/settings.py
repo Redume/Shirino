@@ -174,9 +174,15 @@ async def settings_handler(message: types.Message):
 async def show_language_menu(callback: CallbackQuery):
     locale = await get_user_locale(callback.from_user.id)
 
+    data = await db.fetch(
+        'SELECT lang FROM users WHERE user_id = $1',
+        callback.from_user.id
+    )
+    current_lang = data.get('lang', 'en')
+
     keyboard = build_options_keyboard(
         options=LANG_OPTIONS,
-        current_value=locale.get("lang", "en"),
+        current_value=current_lang,
         callback_prefix="lang",
         locale=locale,
         back_callback="back_to_settings",
@@ -185,7 +191,6 @@ async def show_language_menu(callback: CallbackQuery):
     await safe_edit_message_text(
         callback, locale.get("choose_language"), keyboard
     )
-
 
 @router.callback_query(lambda c: c.data and c.data.startswith("lang_"))
 async def language_selected(callback: CallbackQuery):
@@ -209,8 +214,8 @@ async def language_selected(callback: CallbackQuery):
         callback, locale.get("choose_language"), keyboard
     )
     await callback.answer(
-        locale.get("language_set").format(lang=lang.upper())
-        )
+        locale.get("language_set").format(lang=lang)
+    )
 
 
 @router.callback_query(lambda c: c.data == "back_to_settings")
