@@ -91,7 +91,7 @@ async def currency(query: types.InlineQuery) -> None:
 
     chart = None
 
-    if bool(data.get('chart', 0)):
+    if bool(data.get('chart', 1)):
         chart = await create_chart(
             from_currency,
             conv_currency,
