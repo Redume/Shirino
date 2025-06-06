@@ -74,7 +74,7 @@ def build_options_keyboard(
         buttons.append(
             [
                 InlineKeyboardButton(
-                    text=locale.get("back", "Back"),
+                    text=locale["back"],
                     callback_data=back_callback,
                 )
             ]
@@ -86,9 +86,9 @@ def get_chart_toggle_keyboard(
     chart_enabled: bool, locale: dict
 ) -> InlineKeyboardMarkup:
     toggle_text = (
-        locale.get("chart_disable", "Disable Chart")
+        locale["chart_disable"]
         if chart_enabled
-        else locale.get("chart_enable", "Enable Chart")
+        else locale["chart_enable"]
     )
     return InlineKeyboardMarkup(
         inline_keyboard=[
@@ -97,17 +97,17 @@ def get_chart_toggle_keyboard(
                     text=toggle_text, callback_data="chart_toggle"
                 ),
                 InlineKeyboardButton(
-                    text=locale.get("chart_period", "Chart Period"),
+                    text=locale["chart_period"],
                     callback_data="chart_period",
                 ),
                 InlineKeyboardButton(
-                    text=locale.get("setting_backend", "Chart Backend"),
+                    text=locale["setting_backend"],
                     callback_data="setting_backend",
                 ),
             ],
             [
                 InlineKeyboardButton(
-                    text=locale.get("back", "Back"),
+                    text=locale["back"],
                     callback_data="back_to_settings",
                 ),
             ],
@@ -157,11 +157,11 @@ async def settings_handler(message: types.Message):
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text=locale.get("setting_chart", "Chart Settings"),
+                    text=locale["setting_chart"],
                     callback_data="setting_chart",
                 ),
                 InlineKeyboardButton(
-                    text=locale.get("setting_lang", "Language Settings"),
+                    text=locale["setting_lang"],
                     callback_data="setting_lang",
                 ),
             ],
@@ -169,7 +169,7 @@ async def settings_handler(message: types.Message):
     )
 
     await message.answer(
-        locale.get("settings_title", "Settings"),
+        locale["settings_title"],
         reply_markup=settings_keyboard
     )
 
@@ -192,7 +192,7 @@ async def show_language_menu(callback: CallbackQuery):
     )
 
     await safe_edit_message_text(
-        callback, locale.get("choose_language"), keyboard
+        callback, locale["choose_language"], keyboard
     )
 
 @router.callback_query(lambda c: c.data and c.data.startswith("lang_"))
@@ -214,10 +214,10 @@ async def language_selected(callback: CallbackQuery):
     )
 
     await safe_edit_message_text(
-        callback, locale.get("choose_language"), keyboard
+        callback, locale["choose_language"], keyboard
     )
     await callback.answer(
-        locale.get("language_set").format(lang=lang)
+        locale["language_set"].format(lang=lang)
     )
 
 
@@ -229,7 +229,7 @@ async def show_backend_settings(callback: CallbackQuery):
         'SELECT chart_backend, lang FROM users WHERE user_id = $1',
         callback.from_user.id
     )
-    current_backend = data.get('chart_backend', 'matplotlib')
+    current_backend = data['chart_backend']
     backend_label = locale.get(current_backend, current_backend)
 
     keyboard = build_options_keyboard(
@@ -242,7 +242,7 @@ async def show_backend_settings(callback: CallbackQuery):
 
     await safe_edit_message_text(
         callback,
-        f"{locale.get('choose_chart_backend', 'Choose Chart Backend')}",
+        f"{locale['choose_chart_backend']}",
         keyboard
     )
 
@@ -268,7 +268,7 @@ async def set_backend(callback: CallbackQuery):
 
     await safe_edit_message_text(
         callback,
-        locale.get("choose_chart_backend", "Choose Chart Backend"),
+        locale["choose_chart_backend"],
         keyboard
     )
 
@@ -281,15 +281,15 @@ async def back_to_settings(callback: CallbackQuery):
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text=locale.get("setting_chart", "Chart Settings"),
+                    text=locale["setting_chart"],
                     callback_data="setting_chart",
                 ),
                 InlineKeyboardButton(
-                    text=locale.get("setting_lang", "Language Settings"),
+                    text=locale["setting_lang"],
                     callback_data="setting_lang",
                 ),
                 InlineKeyboardButton(
-                    text=locale.get("setting_backend", "Chart Backend"),
+                    text=locale["setting_backend"],
                     callback_data="setting_backend",
                 ),
             ],
@@ -319,10 +319,10 @@ async def show_chart_settings(callback: CallbackQuery):
     period_text = locale.get(period, period)
 
     text = (
-        f"{locale.get('chart_settings', 'Chart Settings')}\n"
-        f"{locale.get('status', 'Status')}: {status_text}\n"
-        f"{locale.get('period', 'Period')}: {period_text}\n"
-        f"{locale.get('selected_chart_backend')}: {data.get('chart_backend')}"
+        f"{locale['chart_settings']}\n"
+        f"{locale['status']}: {status_text}\n"
+        f"{locale['period']}: {period_text}\n"
+        f"{locale['selected_chart_backend']}: {data.get('chart_backend')}"
     )
     keyboard = get_chart_toggle_keyboard(chart_status, locale)
 
@@ -370,7 +370,7 @@ async def change_chart_period(callback: CallbackQuery):
 
     await safe_edit_message_text(
         callback,
-        locale.get("choose_period", "Choose Period"),
+        locale["choose_period"],
         keyboard
     )
 
@@ -395,7 +395,6 @@ async def set_chart_period(callback: CallbackQuery):
 
     await safe_edit_message_text(
         callback,
-        locale.get("choose_period", "Choose Period"),
+        locale["choose_period"],
         keyboard
     )
-    await callback.answer(locale.get("period_set", "Period set to {period}").format(period=period))

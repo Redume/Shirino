@@ -21,4 +21,12 @@ class I18n:
     def get_locale(self, lang: str | None = None) -> dict:
         """Return the whole dictionary for one language (fallback → default_lang)."""
         lang = (lang or self.default_lang).lower()[:2]
-        return self.translations.get(lang, self.translations[self.default_lang])
+        lang_dict = self.translations.get(lang, self.translations.get(self.default_lang, {}))
+
+        fallback_dict = self.translations.get(self.default_lang, {})
+        merged_dict = {
+            key: lang_dict.get(key, fallback_dict.get(key, key))
+            for key in set(lang_dict) | set(fallback_dict)
+        }
+
+        return merged_dict
