@@ -1,5 +1,6 @@
 from http import HTTPStatus
 from urllib.parse import urlencode
+import time
 
 import yaml
 import aiohttp
@@ -15,8 +16,12 @@ async def create_chart(
         'from_currency': from_currency,
         'conv_currency': conv_currency,
         'period': period,
-        'backend': backend
+        'backend': backend,
+        'time_unique': time.time()
     }
+
+    # Without time_unqiue Telegram does not want to load the image 
+    # Probably because of some kind of caching, but it's disabled.
     
     base_url = f'{config["kekkai_instance"]}/api/getChart/'
     query_string = urlencode(params)
