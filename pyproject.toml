@@ -1,0 +1,20 @@
+[tool.isort]
+profile = "black"
+line_length = 79
+known_first_party = ["kekkai", "chart"]
+
+[tool.black]
+line-length = 79
+target-version = ['py312']
+include = '\.pyi?$'
+exclude = '''
+/(
+  \.git
+  | \.mypy_cache
+  | \.venv
+  | build
+  | dist
+  | Dockerfile
+  | .*\.md$
+)/
+'''
