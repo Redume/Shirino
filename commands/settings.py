@@ -74,7 +74,7 @@ def build_options_keyboard(
         buttons.append(
             [
                 InlineKeyboardButton(
-                    text=locale.get("back"),
+                    text=locale.get("back", "Back"),
                     callback_data=back_callback,
                 )
             ]
@@ -86,9 +86,9 @@ def get_chart_toggle_keyboard(
     chart_enabled: bool, locale: dict
 ) -> InlineKeyboardMarkup:
     toggle_text = (
-        locale.get("chart_disable")
+        locale.get("chart_disable", "Disable Chart")
         if chart_enabled
-        else locale.get("chart_enable")
+        else locale.get("chart_enable", "Enable Chart")
     )
     return InlineKeyboardMarkup(
         inline_keyboard=[
@@ -97,13 +97,17 @@ def get_chart_toggle_keyboard(
                     text=toggle_text, callback_data="chart_toggle"
                 ),
                 InlineKeyboardButton(
-                    text=locale.get("chart_period"),
+                    text=locale.get("chart_period", "Chart Period"),
                     callback_data="chart_period",
+                ),
+                InlineKeyboardButton(
+                    text=locale.get("setting_backend", "Chart Backend"),
+                    callback_data="setting_backend",
                 ),
             ],
             [
                 InlineKeyboardButton(
-                    text=locale.get("back"),
+                    text=locale.get("back", "Back"),
                     callback_data="back_to_settings",
                 ),
             ],
@@ -153,11 +157,11 @@ async def settings_handler(message: types.Message):
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text=locale.get("setting_chart"),
+                    text=locale.get("setting_chart", "Chart Settings"),
                     callback_data="setting_chart",
                 ),
                 InlineKeyboardButton(
-                    text=locale.get("setting_lang"),
+                    text=locale.get("setting_lang", "Language Settings"),
                     callback_data="setting_lang",
                 ),
             ],
@@ -165,9 +169,9 @@ async def settings_handler(message: types.Message):
     )
 
     await message.answer(
-        locale.get("settings_title"), reply_markup=settings_keyboard
+        locale.get("settings_title", "Settings"),
+        reply_markup=settings_keyboard
     )
-
 
 @router.callback_query(lambda c: c.data == "setting_lang")
 async def show_language_menu(callback: CallbackQuery):
@@ -217,6 +221,58 @@ async def language_selected(callback: CallbackQuery):
     )
 
 
+@router.callback_query(lambda c: c.data == "setting_backend")
+async def show_backend_settings(callback: CallbackQuery):
+    locale = await get_user_locale(callback.from_user.id)
+
+    data = await db.fetch(
+        'SELECT chart_backend, lang FROM users WHERE user_id = $1',
+        callback.from_user.id
+    )
+    current_backend = data.get('chart_backend', 'matplotlib')
+    backend_label = locale.get(current_backend, current_backend)
+
+    keyboard = build_options_keyboard(
+        options=[("typst", "Typst"), ("matplotlib", "Matplotlib")],
+        current_value=current_backend,
+        callback_prefix="backend",
+        locale=locale,
+        back_callback="back_to_settings",
+    )
+
+    await safe_edit_message_text(
+        callback,
+        f"{locale.get('choose_chart_backend', 'Choose Chart Backend')}",
+        keyboard
+    )
+
+
+@router.callback_query(lambda c: c.data and c.data.startswith("backend_"))
+async def set_backend(callback: CallbackQuery):
+    backend = callback.data.split("_")[1]
+
+    await db.update(
+        'UPDATE users SET chart_backend = $1 WHERE user_id = $2', 
+        backend, callback.from_user.id
+    )
+
+    locale = await get_user_locale(callback.from_user.id)
+
+    keyboard = build_options_keyboard(
+        options=[("typst", "Typst"), ("matplotlib", "Matplotlib")],
+        current_value=backend,
+        callback_prefix="backend",
+        locale=locale,
+        back_callback="back_to_settings",
+    )
+
+    await safe_edit_message_text(
+        callback,
+        locale.get("choose_chart_backend", "Choose Chart Backend"),
+        keyboard
+    )
+
+
 @router.callback_query(lambda c: c.data == "back_to_settings")
 async def back_to_settings(callback: CallbackQuery):
     locale = await get_user_locale(callback.from_user.id)
@@ -225,26 +281,30 @@ async def back_to_settings(callback: CallbackQuery):
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text=locale.get("setting_chart"),
+                    text=locale.get("setting_chart", "Chart Settings"),
                     callback_data="setting_chart",
                 ),
                 InlineKeyboardButton(
-                    text=locale.get("setting_lang"),
+                    text=locale.get("setting_lang", "Language Settings"),
                     callback_data="setting_lang",
+                ),
+                InlineKeyboardButton(
+                    text=locale.get("setting_backend", "Chart Backend"),
+                    callback_data="setting_backend",
                 ),
             ],
         ]
     )
 
     await safe_edit_message_text(
-        callback, locale.get("settings_title"), settings_keyboard
+        callback, locale.get("settings_title", "Settings"), settings_keyboard
     )
 
 
 @router.callback_query(lambda c: c.data == "setting_chart")
 async def show_chart_settings(callback: CallbackQuery):
     data = await db.fetch(
-        'SELECT chart, chart_period, lang FROM users WHERE user_id = $1',
+        'SELECT * FROM users WHERE user_id = $1',
         callback.from_user.id,
     )
     lang = data.get("lang", "en")
@@ -253,15 +313,16 @@ async def show_chart_settings(callback: CallbackQuery):
     chart_status = bool(data.get("chart", 1))
     period = data.get("chart_period")
 
-    status_text = locale.get("enabled") \
+    status_text = locale.get("enabled", "Enabled") \
         if chart_status \
-            else locale.get("disabled")
+            else locale.get("disabled", "Disabled")
     period_text = locale.get(period, period)
 
     text = (
-        f"{locale.get('chart_settings')}\n"
-        f"{locale.get('status')}: {status_text}\n"
-        f"{locale.get('period')}: {period_text}"
+        f"{locale.get('chart_settings', 'Chart Settings')}\n"
+        f"{locale.get('status', 'Status')}: {status_text}\n"
+        f"{locale.get('period', 'Period')}: {period_text}\n"
+        f"{locale.get('selected_chart_backend')}: {data.get('chart_backend')}"
     )
     keyboard = get_chart_toggle_keyboard(chart_status, locale)
 
@@ -283,13 +344,6 @@ async def toggle_chart(callback: CallbackQuery):
     await db.update(
         'UPDATE users SET chart = $1 WHERE user_id = $2', 
         new_status, callback.from_user.id
-    )
-
-    await callback.answer(
-        locale.get(
-            f"chart_now_{'enabled' if new_status else 'disabled'}",
-            f"Chart now {'enabled' if new_status else 'disabled'}",
-        )
     )
 
     await show_chart_settings(callback)
@@ -316,7 +370,7 @@ async def change_chart_period(callback: CallbackQuery):
 
     await safe_edit_message_text(
         callback,
-        locale.get("choose_period"),
+        locale.get("choose_period", "Choose Period"),
         keyboard
     )
 
@@ -341,7 +395,7 @@ async def set_chart_period(callback: CallbackQuery):
 
     await safe_edit_message_text(
         callback,
-        locale.get("choose_period"),
+        locale.get("choose_period", "Choose Period"),
         keyboard
     )
-    await callback.answer(locale.get("period_set").format(period=period))
+    await callback.answer(locale.get("period_set", "Period set to {period}").format(period=period))
