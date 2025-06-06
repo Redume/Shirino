@@ -22,8 +22,7 @@ async def currency(query: types.InlineQuery) -> None:
     get_bot = await bot.get_me()
 
     data = await db.fetch(
-        'SELECT lang, chart, chart_period '
-        'FROM users WHERE user_id = ?', 
+        'SELECT * FROM users WHERE user_id = ?', 
         query.from_user.id
     )
 
@@ -95,7 +94,8 @@ async def currency(query: types.InlineQuery) -> None:
         chart = await create_chart(
             from_currency,
             conv_currency,
-            data.get('chart_period', 'month')
+            data.get('chart_period', 'month'),
+            data.get('chart_backend', 'matplotlib')
         )
 
     message = (
