@@ -2,8 +2,10 @@ import re
 
 from aiogram import types
 
+
 def esc_md(text: str) -> str:
-    return re.sub(r'([_*\[\]()~`>#+\-=|{}.!\\])', r'\\\1', text)
+    return re.sub(r"([_*\[\]()~`>#+\-=|{}.!\\])", r"\\\1", text)
+
 
 async def reply(result_id: str, args: list, query: types.InlineQuery) -> None:
     if not args:
@@ -24,7 +26,7 @@ async def reply(result_id: str, args: list, query: types.InlineQuery) -> None:
                 title=title,
                 description=description,
                 caption=esc_md(title),
-                parse_mode="MarkdownV2"
+                parse_mode="MarkdownV2",
             )
         else:
             article = types.InlineQueryResultArticle(

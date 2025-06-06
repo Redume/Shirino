@@ -1,12 +1,13 @@
 import json
 from datetime import date, datetime
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
 
 import aiosqlite
 import yaml
 
-config = yaml.safe_load(open('../config.yaml', 'r', encoding='utf-8'))
+config = yaml.safe_load(open("../config.yaml", "r", encoding="utf-8"))
+
 
 def custom_encoder(obj):
     """
@@ -18,6 +19,7 @@ def custom_encoder(obj):
     if isinstance(obj, (date, datetime)):
         return obj.isoformat()
     raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
+
 
 class Database:
     """
@@ -65,16 +67,15 @@ class Database:
         self.db_path = db_path
         self.conn: Optional[aiosqlite.Connection] = None
 
-
     async def _create_table(self) -> None:
         """
         Create table from SQL file using aiosqlite.
 
-        Reads SQL commands from 'schemas/data.sql' 
+        Reads SQL commands from 'schemas/data.sql'
             and executes them as a script.
         """
         sql_file = Path(__file__).parent / "schemas" / "data.sql"
-        sql = sql_file.read_text(encoding='utf-8')
+        sql = sql_file.read_text(encoding="utf-8")
 
         async with self.conn.execute("BEGIN"):
             await self.conn.executescript(sql)
@@ -139,12 +140,13 @@ class Database:
 
         async with self.conn.execute(query, args) as cursor:
             rows = await cursor.fetchall()
-            return json.loads(
-                json.dumps(
-                    [dict(row) for row in rows], 
-                    default=custom_encoder
+            return (
+                json.loads(
+                    json.dumps([dict(row) for row in rows], default=custom_encoder)
                 )
-                ) if rows else []
+                if rows
+                else []
+            )
 
     async def insert(self, query: str, *args) -> Dict[str, Any]:
         """
