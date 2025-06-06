@@ -1,14 +1,14 @@
 import hashlib
 
-from aiogram import types, Router
+from aiogram import Router, types
 from aiogram.filters import Command
 
 from bot import bot, db
 from functions.convert import Converter
 from functions.create_chart import create_chart
+from i18n.localization import I18n
 from utils.format_number import format_number
 from utils.inline_query import reply
-from i18n.localization import I18n
 
 router = Router()
 i18n = I18n()
@@ -21,45 +21,38 @@ async def currency(query: types.InlineQuery) -> None:
     result_id = hashlib.md5(text.encode()).hexdigest()
     get_bot = await bot.get_me()
 
-    data = await db.fetch(
-        'SELECT * FROM users WHERE user_id = ?', 
-        query.from_user.id
-    )
+    data = await db.fetch("SELECT * FROM users WHERE user_id = ?", query.from_user.id)
 
-    lang = data.get('lang')
+    lang = data.get("lang")
     locale = i18n.get_locale(lang)
 
-    currency_example = locale["currency_example"].format(
-        bot_username=get_bot.username
-        )
+    currency_example = locale["currency_example"].format(bot_username=get_bot.username)
 
     if len(args) < 2:
         await reply(
             result_id,
             [(locale["error_not_enough_args"], currency_example, None, None)],
-            query
+            query,
         )
         return
 
     conv = Converter()
 
-    from_currency, conv_currency = '', ''
+    from_currency, conv_currency = "", ""
 
     if len(args) == 3:
         try:
-            conv.amount = float(args[0].replace(',', '.'))
+            conv.amount = float(args[0].replace(",", "."))
             if conv.amount < 0:
                 await reply(
-                    result_id,
-                    [(locale["error_negative_amount"], None, None)],
-                    query
+                    result_id, [(locale["error_negative_amount"], None, None)], query
                 )
                 return
         except ValueError:
             await reply(
                 result_id,
                 [(locale["error_invalid_number"], currency_example, None, None)],
-                query
+                query,
             )
             return
         from_currency = args[1]
@@ -81,21 +74,17 @@ async def currency(query: types.InlineQuery) -> None:
     try:
         await conv.convert()
     except RuntimeError:
-        await reply(
-            result_id,
-            [(locale["error_currency_rate"], None, None)],
-            query
-        )
+        await reply(result_id, [(locale["error_currency_rate"], None, None)], query)
         return
 
     chart = None
 
-    if bool(data.get('chart', 1)):
+    if bool(data.get("chart", 1)):
         chart = await create_chart(
             from_currency,
             conv_currency,
-            data.get('chart_period', 'month'),
-            data.get('chart_backend', 'matplotlib')
+            data.get("chart_period", "month"),
+            data.get("chart_backend", "matplotlib"),
         )
 
     message = (
@@ -105,13 +94,6 @@ async def currency(query: types.InlineQuery) -> None:
     results = [(message, None, None)]
 
     if chart:
-        results.insert(
-            0, 
-            (
-                message, 
-                None, 
-                chart
-            )
-        )
+        results.insert(0, (message, None, chart))
 
     await reply(result_id, results, query)
