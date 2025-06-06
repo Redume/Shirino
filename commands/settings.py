@@ -256,10 +256,6 @@ async def back_to_settings(callback: CallbackQuery):
                     text=locale["setting_lang"],
                     callback_data="setting_lang",
                 ),
-                InlineKeyboardButton(
-                    text=locale["setting_backend"],
-                    callback_data="setting_backend",
-                ),
             ],
         ]
     )
