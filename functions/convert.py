@@ -41,27 +41,30 @@ class Converter:
                 )
 
     async def kekkai(self) -> bool:
-        date = await self.get_lastdate()
+        try:
+            date = await self.get_lastdate()
 
-        async with aiohttp.ClientSession(
-            timeout=aiohttp.ClientTimeout(total=3)
-        ) as session:
-            async with session.get(
-                f"{config['kekkai_instance']}/api/getRate/",
-                params={
-                    "from_currency": self.from_currency,
-                    "conv_currency": self.conv_currency,
-                    "date": date,
-                    "conv_amount": self.amount,
-                },
-            ) as res:
-                if not HTTPStatus(res.status).is_success:
-                    return False
+            async with aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=3)
+            ) as session:
+                async with session.get(
+                    f"{config['kekkai_instance']}/api/getRate/",
+                    params={
+                        "from_currency": self.from_currency,
+                        "conv_currency": self.conv_currency,
+                        "date": date,
+                        "conv_amount": self.amount,
+                    },
+                ) as res:
+                    if not HTTPStatus(res.status).is_success:
+                        return False
 
-                data = await res.json()
-                self.conv_amount = data.get("conv_amount", 0.0)
+                    data = await res.json()
+                    self.conv_amount = data.get("conv_amount", 0.0)
 
-                return True
+                    return True
+        except aiohttp.ClientConnectorError:
+            return False
 
     async def ddg(self) -> None:
         async with aiohttp.ClientSession(
