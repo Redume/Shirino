@@ -63,7 +63,7 @@ class Converter:
                     self.conv_amount = data.get("conv_amount", 0.0)
 
                     return True
-        except aiohttp.ClientConnectorError:
+        except aiohttp.ClientError:
             return False
 
     async def ddg(self) -> None:
