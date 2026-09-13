@@ -26,9 +26,12 @@ async def create_chart(
     query_string = urlencode(params)
     full_url = f"{base_url}?{query_string}"
 
-    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=3)) as session:
-        async with session.get(full_url) as res:
-            if not HTTPStatus(res.status).is_success:
-                return None
+    try:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=3)) as session:
+            async with session.get(full_url) as res:
+                if not HTTPStatus(res.status).is_success:
+                    return None
 
-            return full_url
+                return full_url
+    except aiohttp.ClientError:
+        return None
